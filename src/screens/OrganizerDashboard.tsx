@@ -241,9 +241,6 @@ export function OrganizerDashboard() {
               </div>
               <p className="text-2xl font-extrabold leading-none tracking-tight">
                 {stat.value}
-                {'unit' in stat && stat.unit && (
-                  <span className="text-sm font-bold text-[#12122A]/50 ml-1">{stat.unit}</span>
-                )}
               </p>
               <p className="text-xs text-[#12122A]/50 font-medium mt-1">{stat.label}</p>
             </div>
