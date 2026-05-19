@@ -28,8 +28,6 @@ export function Sidebar() {
 
   const fullName: string = user?.user_metadata?.full_name ?? 'Utilisateur'
   const initials = getInitials(fullName)
-  // TODO: restrict to role === 'organizer' when auth roles are configured
-  const isOrganizer = !!user
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -72,23 +70,21 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Dashboard Pro — visible only for organizers */}
-      {isOrganizer && (
-        <div className="px-3 pb-2 border-t border-[#E5E7EB] pt-3 mt-1">
-          <button
-            onClick={() => navigate('/organizer')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all text-left ${
-              location.pathname === '/organizer'
-                ? 'bg-accent/10 text-accent'
-                : 'text-[#12122A]/60 hover:bg-[#F4F4FB] hover:text-[#12122A]'
-            }`}
-          >
-            <LayoutDashboard size={18} />
-            <span>Dashboard Pro</span>
-            <span className="ml-auto text-[10px] font-bold bg-accent/15 text-accent px-2 py-0.5 rounded-full">PRO</span>
-          </button>
-        </div>
-      )}
+      {/* Dashboard Pro */}
+      <div className="px-3 pb-2 border-t border-[#E5E7EB] pt-3 mt-1">
+        <button
+          onClick={() => navigate('/organizer')}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all text-left ${
+            location.pathname === '/organizer'
+              ? 'bg-accent/10 text-accent'
+              : 'text-[#12122A]/60 hover:bg-[#F4F4FB] hover:text-[#12122A]'
+          }`}
+        >
+          <LayoutDashboard size={18} />
+          <span>Dashboard Pro</span>
+          <span className="ml-auto text-[10px] font-bold bg-accent/15 text-accent px-2 py-0.5 rounded-full">PRO</span>
+        </button>
+      </div>
 
       {/* Create event button */}
       <div className="px-3 pb-4">

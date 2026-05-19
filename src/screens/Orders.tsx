@@ -156,7 +156,7 @@ function EmptyState({ tab, onExplore }: { tab: SubTab; onExplore: () => void }) 
   )
 }
 
-function TicketCard({ ticket, onWip }: { ticket: DisplayTicket; onWip: () => void }) {
+function TicketCard({ ticket, onWip, onView }: { ticket: DisplayTicket; onWip: () => void; onView: () => void }) {
   const { label, cls } = statusConfig(ticket.status)
   const days = daysUntil(ticket.dateIso)
   const showCountdown = ticket.status === 'upcoming' && days > 0 && days <= 7
@@ -230,7 +230,7 @@ function TicketCard({ ticket, onWip }: { ticket: DisplayTicket; onWip: () => voi
 
         {ticket.status === 'upcoming' && (
           <button
-            onClick={onWip}
+            onClick={onView}
             className="w-full h-11 rounded-xl flex items-center justify-center gap-2 text-sm font-bold text-white transition-opacity hover:opacity-90 active:scale-[0.98]"
             style={{ background: 'linear-gradient(135deg, #2563EB, #9333EA)' }}
           >
@@ -240,7 +240,7 @@ function TicketCard({ ticket, onWip }: { ticket: DisplayTicket; onWip: () => voi
         )}
         {ticket.status === 'past' && (
           <button
-            onClick={onWip}
+            onClick={onView}
             className="w-full h-11 rounded-xl border border-[#E5E7EB] flex items-center justify-center gap-2 text-sm font-semibold text-[#12122A]/50 transition-colors hover:border-[#12122A]/20"
           >
             <QrCode size={16} />
@@ -350,7 +350,12 @@ export function Orders() {
           ) : (
             <div className="px-5 flex flex-col gap-4 md:grid md:grid-cols-2">
               {filtered.map((ticket) => (
-                <TicketCard key={ticket.id} ticket={ticket} onWip={wip} />
+                <TicketCard
+                  key={ticket.id}
+                  ticket={ticket}
+                  onWip={wip}
+                  onView={() => navigate(`/ticket/${ticket.id}`)}
+                />
               ))}
             </div>
           )}

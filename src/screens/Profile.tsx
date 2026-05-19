@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   User, Pencil, Lock, Heart, CreditCard, List, Bell, Clock,
   Tag, RefreshCw, Shield, Smartphone, Trash2, Info,
-  FileText, Mail, LogOut, ChevronRight, X, Check, Camera,
+  FileText, Mail, LogOut, ChevronRight, X, Check, Camera, LayoutDashboard,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -376,6 +376,23 @@ export function Profile() {
         <SettingsSection title="Notifications" items={notifItems} />
         <SettingsSection title="Sécurité" items={securityItems} />
         <SettingsSection title="À propos" items={aboutItems} />
+
+        {/* Dashboard Pro */}
+        <button
+          onClick={() => navigate('/organizer')}
+          className="w-full h-14 rounded-2xl flex items-center justify-center gap-2.5 border font-bold text-sm transition-all active:scale-[0.98]"
+          style={{
+            background: 'linear-gradient(135deg,rgba(37,99,235,0.06),rgba(147,51,234,0.06))',
+            borderColor: 'rgba(37,99,235,0.2)',
+            color: '#2563EB',
+          }}
+        >
+          <LayoutDashboard size={18} />
+          Dashboard Pro
+          <span className="ml-1 text-[10px] font-bold bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">
+            PRO
+          </span>
+        </button>
 
         {/* Déconnexion */}
         <button

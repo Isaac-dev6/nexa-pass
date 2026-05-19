@@ -211,15 +211,24 @@ export function OrganizerDashboard() {
             <h1 className="text-2xl font-extrabold tracking-tight leading-tight">Mon Dashboard</h1>
             <p className="text-sm text-[#12122A]/50 mt-0.5">{orgName}</p>
           </div>
-          <button
-            onClick={() => navigate('/create-event')}
-            className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-bold transition-opacity hover:opacity-90 active:scale-[0.97]"
-            style={{ background: 'linear-gradient(135deg, #2563EB, #9333EA)' }}
-          >
-            <Plus size={16} />
-            <span className="hidden sm:inline">Créer un événement</span>
-            <span className="sm:hidden">Créer</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/scanner')}
+              className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-[#E5E7EB] bg-white text-[#12122A] transition-all hover:border-primary/40 hover:text-primary active:scale-[0.97]"
+            >
+              <QrCode size={16} />
+              <span className="hidden sm:inline">Scanner</span>
+            </button>
+            <button
+              onClick={() => navigate('/create-event')}
+              className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-bold transition-opacity hover:opacity-90 active:scale-[0.97]"
+              style={{ background: 'linear-gradient(135deg, #2563EB, #9333EA)' }}
+            >
+              <Plus size={16} />
+              <span className="hidden sm:inline">Créer un événement</span>
+              <span className="sm:hidden">Créer</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -392,7 +401,7 @@ export function OrganizerDashboard() {
                         Modifier
                       </button>
                       <button
-                        onClick={wip}
+                        onClick={() => navigate('/scanner')}
                         className="flex-1 h-9 rounded-xl border border-[#E5E7EB] flex items-center justify-center gap-1.5 text-xs font-bold text-[#12122A]/70 hover:border-primary/40 hover:text-primary transition-all"
                       >
                         <QrCode size={13} />
