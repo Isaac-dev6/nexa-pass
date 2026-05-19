@@ -150,51 +150,51 @@ export function QRScanner() {
   const validateRef = useRef<(code: string) => Promise<void>>(async () => {})
 
   validateRef.current = async (code: string) => {
-    console.log('[QRScanner] 🔍 Validating code:', code)
+    console.log('[QRScanner] 🔍 Validating via RPC — code:', code)
 
-    const { data, error } = await supabase
-      .from('tickets')
-      .select('id, status, category, used_at, events(title)')
-      // ilike = case-insensitive match (no wildcards → acts as eq but case-blind)
-      .ilike('qr_code', code)
-      .maybeSingle()
+    const { data, error } = await supabase.rpc('scan_ticket', {
+      p_qr_code: code,
+      p_organizer_id: user?.id ?? null,
+    })
 
     if (error) {
-      console.error('[QRScanner] ❌ Supabase error:', error.message)
+      console.error('[QRScanner] ❌ RPC error:', error.message)
       emitResult({ kind: 'invalid' })
       return
     }
 
-    if (!data) {
-      console.log('[QRScanner] ❌ No ticket found for code:', code)
+    const res = data as {
+      status: 'valid' | 'already_used' | 'invalid'
+      category?: string
+      event_title?: string
+      used_at?: string
+    }
+
+    console.log('[QRScanner] 🎫 RPC result:', res)
+
+    if (res.status === 'invalid') {
+      console.log('[QRScanner] ❌ No ticket found')
       emitResult({ kind: 'invalid' })
       return
     }
 
-    console.log('[QRScanner] 🎫 Ticket found:', { id: data.id, status: data.status, category: data.category })
-
-    if (data.status === 'used') {
-      console.log('[QRScanner] ⚠️ Ticket already used:', data.id)
+    if (res.status === 'already_used') {
+      console.log('[QRScanner] ⚠️ Already used — usedAt:', res.used_at)
       emitResult({
         kind: 'used',
-        eventTitle: (data.events as { title?: string } | null)?.title,
-        category: data.category as string,
-        usedAt: (data as { used_at?: string }).used_at,
+        eventTitle: res.event_title,
+        category: res.category,
+        usedAt: res.used_at,
       })
       return
     }
 
-    const { error: updateErr } = await supabase
-      .from('tickets')
-      .update({ status: 'used', used_at: new Date().toISOString(), used_by: user?.id ?? null })
-      .eq('id', data.id)
-    if (updateErr) console.error('[QRScanner] Update error:', updateErr.message)
-
-    console.log('[QRScanner] ✅ Ticket validated & marked used:', data.id)
+    // status === 'valid' → atomically marked as used by the RPC
+    console.log('[QRScanner] ✅ Valid — marked used atomically')
     emitResult({
       kind: 'valid',
-      eventTitle: (data.events as { title?: string } | null)?.title,
-      category: data.category as string,
+      eventTitle: res.event_title,
+      category: res.category,
     })
     setValidCount((n) => n + 1)
   }

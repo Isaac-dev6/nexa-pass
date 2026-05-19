@@ -46,6 +46,7 @@ export interface OrgTicketStat {
   category: string
   total_price: number
   quantity: number
+  status: string
   created_at: string
   user_id: string
 }
@@ -54,7 +55,10 @@ export interface OrgStats {
   ticketCount: number
   totalSold: number
   revenue: number
+  scannedCount: number
+  activeTicketsCount: number
   recentTickets: OrgTicketStat[]
+  buyerNames: Record<string, string>
   chartData: { day: string; ventes: number }[]
   perEvent: Record<string, { sold: number; revenue: number }>
   loading: boolean
@@ -189,7 +193,10 @@ export function useOrganizerStats(organizerId: string | undefined): OrgStats {
     ticketCount: 0,
     totalSold: 0,
     revenue: 0,
+    scannedCount: 0,
+    activeTicketsCount: 0,
     recentTickets: [],
+    buyerNames: {},
     chartData: [],
     perEvent: {},
     loading: true,
@@ -215,14 +222,14 @@ export function useOrganizerStats(organizerId: string | undefined): OrgStats {
       const eventIds = (eventsData ?? []).map((e) => e.id as string)
 
       if (eventIds.length === 0) {
-        setStats({ ticketCount: 0, totalSold: 0, revenue: 0, recentTickets: [], chartData: buildEmptyChart(), perEvent: {}, loading: false })
+        setStats({ ticketCount: 0, totalSold: 0, revenue: 0, scannedCount: 0, activeTicketsCount: 0, recentTickets: [], buyerNames: {}, chartData: buildEmptyChart(), perEvent: {}, loading: false })
         return
       }
 
       // 2. Fetch all tickets for those events
       const { data: ticketsData } = await supabase
         .from('tickets')
-        .select('id, event_id, category, total_price, quantity, created_at, user_id')
+        .select('id, event_id, category, total_price, quantity, status, created_at, user_id')
         .in('event_id', eventIds)
         .order('created_at', { ascending: false })
 
@@ -233,6 +240,8 @@ export function useOrganizerStats(organizerId: string | undefined): OrgStats {
       // 3. Aggregate
       const revenue = rows.reduce((s, t) => s + t.total_price, 0)
       const totalSold = rows.reduce((s, t) => s + t.quantity, 0)
+      const scannedCount = rows.filter((t) => t.status === 'used').length
+      const activeTicketsCount = rows.filter((t) => t.status === 'upcoming').length
 
       // 4. Per-event breakdown
       const perEvent: Record<string, { sold: number; revenue: number }> = {}
@@ -259,7 +268,22 @@ export function useOrganizerStats(organizerId: string | undefined): OrgStats {
         }
       })
 
-      setStats({ ticketCount: rows.length, totalSold, revenue, recentTickets: rows.slice(0, 5), chartData, perEvent, loading: false })
+      // 6. Buyer display names from profiles (if full_name column exists)
+      const recentRows = rows.slice(0, 5)
+      const uniqueUserIds = [...new Set(recentRows.map((t) => t.user_id))]
+      const buyerNames: Record<string, string> = {}
+      if (uniqueUserIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', uniqueUserIds)
+        for (const p of (profilesData ?? [])) {
+          const prof = p as { id: string; full_name?: string | null }
+          if (prof.full_name) buyerNames[prof.id] = prof.full_name
+        }
+      }
+
+      setStats({ ticketCount: rows.length, totalSold, revenue, scannedCount, activeTicketsCount, recentTickets: recentRows, buyerNames, chartData, perEvent, loading: false })
     }
 
     load().catch(console.error)

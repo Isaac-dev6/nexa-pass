@@ -25,10 +25,7 @@ function getInitials(name: string): string {
     .join('')
 }
 
-function fmtDate(iso: string | null): string {
-  if (!iso) return 'Date à confirmer'
-  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-}
+const HERO_COUNT = 5
 
 function HeroSkeleton() {
   return (
@@ -73,7 +70,8 @@ export function Home() {
   const initials = getInitials(fullName)
   const firstName = fullName.split(' ')[0]
 
-  const heroEvent = events[0] ?? null
+  // First HERO_COUNT events populate the carousel; the rest appear in the list
+  const heroEvents = events.slice(0, HERO_COUNT)
 
   const filteredEvents = events.filter((e) => {
     const matchCat =
@@ -88,10 +86,10 @@ export function Home() {
     return matchCat && matchSearch
   })
 
-  // When no filters active, skip the hero event from the card list (it's shown in HeroCard)
+  // When no filters active, skip the hero events from the list to avoid duplication
   const displayedEvents =
     activeCategory === 'Tous' && !searchValue.trim()
-      ? filteredEvents.slice(1)
+      ? filteredEvents.slice(heroEvents.length)
       : filteredEvents
 
   return (
@@ -155,20 +153,11 @@ export function Home() {
 
       <CategoryPills activeCategory={activeCategory} onChange={setActiveCategory} />
 
-      {/* Hero card */}
+      {/* Hero carousel */}
       {loading ? (
         <HeroSkeleton />
-      ) : heroEvent ? (
-        <HeroCard
-          badge={heroEvent.category ?? 'Événement'}
-          title={heroEvent.title}
-          subtitle={heroEvent.description?.split('\n')[0]?.slice(0, 70) ?? 'Découvrez cet événement'}
-          date={fmtDate(heroEvent.date)}
-          venue={heroEvent.location ?? heroEvent.city ?? 'Brazzaville'}
-          priceLabel="À partir de"
-          price="Voir les prix"
-          imageUrl={heroEvent.cover_url ?? FALLBACK_IMG}
-        />
+      ) : heroEvents.length > 0 ? (
+        <HeroCard events={heroEvents} />
       ) : null}
 
       {/* Event list */}

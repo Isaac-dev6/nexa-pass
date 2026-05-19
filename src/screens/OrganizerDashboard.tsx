@@ -149,13 +149,17 @@ export function OrganizerDashboard() {
     }
   })
 
+  const scanRate = orgStats.totalSold > 0
+    ? Math.round((orgStats.scannedCount / orgStats.totalSold) * 100)
+    : 0
+
   const STATS = [
     {
       label: 'Billets vendus',
       value: orgStats.loading ? '—' : orgStats.totalSold.toLocaleString('fr-FR'),
       icon: Ticket,
       iconBg: 'linear-gradient(135deg,#2563EB,#3b82f6)',
-      delta: `${orgStats.totalSold}`,
+      delta: `${orgStats.ticketCount} commandes`,
       up: true,
     },
     {
@@ -163,16 +167,16 @@ export function OrganizerDashboard() {
       value: orgStats.loading ? '—' : formatRevenue(orgStats.revenue),
       icon: TrendingUp,
       iconBg: 'linear-gradient(135deg,#9333EA,#ec4899)',
-      delta: `${orgStats.ticketCount} ventes`,
+      delta: `7j: ${formatRevenue(orgStats.chartData.reduce((s, d) => s + d.ventes, 0))}`,
       up: true,
     },
     {
-      label: 'Ventes (7j)',
-      value: orgStats.loading ? '—' : formatRevenue(orgStats.chartData.reduce((s, d) => s + d.ventes, 0)),
+      label: 'Billets scannés',
+      value: orgStats.loading ? '—' : orgStats.scannedCount.toLocaleString('fr-FR'),
       icon: BarChart2,
       iconBg: 'linear-gradient(135deg,#f59e0b,#ef4444)',
-      delta: '7 jours',
-      up: true,
+      delta: `${scanRate}% taux`,
+      up: scanRate > 0,
     },
     {
       label: 'Événements actifs',
@@ -432,18 +436,22 @@ export function OrganizerDashboard() {
           ) : orgStats.recentTickets.length === 0 ? (
             <p className="text-sm text-[#12122A]/40 text-center py-8">Aucune vente pour l'instant</p>
           ) : (
-            orgStats.recentTickets.map((ticket, idx) => {
-              const shortId = ticket.user_id.slice(0, 2).toUpperCase()
+            orgStats.recentTickets.map((ticket, i) => {
+              const buyerName = orgStats.buyerNames[ticket.user_id]
+              const displayName = buyerName ?? `Acheteur #${ticket.user_id.slice(0, 8)}`
+              const initials = buyerName
+                ? buyerName.split(' ').slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('')
+                : ticket.user_id.slice(0, 2).toUpperCase()
               return (
                 <div key={ticket.id} className="flex items-center gap-3 px-4 py-3.5">
                   <div
                     className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
-                    style={{ background: AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length] }}
+                    style={{ background: AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length] }}
                   >
-                    {shortId}
+                    {initials}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold truncate">Client #{ticket.user_id.slice(0, 8)}</p>
+                    <p className="text-sm font-bold truncate">{displayName}</p>
                     <p className="text-xs text-[#12122A]/50">{ticket.category} · {formatTimeAgo(ticket.created_at)}</p>
                   </div>
                   <p className="text-sm font-extrabold text-primary shrink-0 whitespace-nowrap">
