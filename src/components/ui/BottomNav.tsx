@@ -22,8 +22,8 @@ export function BottomNav() {
       </button>
 
       <button
-        onClick={wip}
-        className={`flex flex-col items-center gap-1 ${active('/explore')}`}
+        onClick={() => navigate('/explorer')}
+        className={`flex flex-col items-center gap-1 ${active('/explorer')}`}
       >
         <Search size={20} />
         <span className="text-[10px]">Explorer</span>
@@ -37,7 +37,7 @@ export function BottomNav() {
       </button>
 
       <button
-        onClick={wip}
+        onClick={() => navigate('/orders')}
         className={`flex flex-col items-center gap-1 ${active('/orders')}`}
       >
         <Ticket size={20} />

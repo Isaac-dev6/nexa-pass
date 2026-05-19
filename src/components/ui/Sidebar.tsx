@@ -14,7 +14,7 @@ function getInitials(name: string): string {
 
 const NAV_ITEMS = [
   { icon: Compass, label: 'Accueil', path: '/' },
-  { icon: Search, label: 'Explorer', path: '/explore' },
+  { icon: Search, label: 'Explorer', path: '/explorer' },
   { icon: Ticket, label: 'Commandes', path: '/orders' },
   { icon: User, label: 'Profil', path: '/profile' },
 ]
@@ -56,7 +56,7 @@ export function Sidebar() {
           return (
             <button
               key={path}
-              onClick={path === '/' ? () => navigate(path) : wip}
+              onClick={['/', '/orders', '/explorer'].includes(path) ? () => navigate(path) : wip}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all text-left ${
                 isActive
                   ? 'bg-primary/10 text-primary'

@@ -7,6 +7,8 @@ import { Home } from './screens/Home'
 import { Login } from './screens/Login'
 import { Register } from './screens/Register'
 import { EventDetail } from './screens/EventDetail'
+import { Orders } from './screens/Orders'
+import { Explorer } from './screens/Explorer'
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
@@ -36,6 +38,8 @@ function App() {
           <Routes>
             <Route path="/" element={<PrivateRoute><AppShell><Home /></AppShell></PrivateRoute>} />
             <Route path="/event/:id" element={<PrivateRoute><AppShell><EventDetail /></AppShell></PrivateRoute>} />
+            <Route path="/orders" element={<PrivateRoute><AppShell><Orders /></AppShell></PrivateRoute>} />
+            <Route path="/explorer" element={<PrivateRoute><AppShell><Explorer /></AppShell></PrivateRoute>} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
           </Routes>
