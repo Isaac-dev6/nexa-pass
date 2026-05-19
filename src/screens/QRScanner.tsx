@@ -372,7 +372,7 @@ export function QRScanner() {
       console.error('[QRScanner] loadTickets error:', error.message)
       showToast('Erreur lors du chargement des billets.')
     } else {
-      const rows = (data ?? []) as TicketRow[]
+      const rows = (data ?? []) as unknown as TicketRow[]
       console.log('[QRScanner] 📋 Available tickets (qr_code format debug):')
       rows.forEach((t, i) => {
         console.log(`  [${i}] qr_code="${t.qr_code}"  id=${t.id}  status=${t.status}`)

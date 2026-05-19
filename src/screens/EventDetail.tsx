@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   ArrowLeft, Heart, Calendar, Clock, MapPin, ExternalLink,
-  ChevronRight, Ticket, Minus, Plus,
+  ChevronRight, Minus, Plus,
 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useToast } from '../contexts/ToastContext'

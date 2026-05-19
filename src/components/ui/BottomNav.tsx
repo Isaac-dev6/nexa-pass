@@ -1,12 +1,8 @@
 import { Compass, Search, Plus, Ticket, User } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useToast } from '../../contexts/ToastContext'
-
 export function BottomNav() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { showToast } = useToast()
-  const wip = () => showToast('🚧 Cette section est en cours de construction')
 
   const active = (path: string) =>
     location.pathname === path ? 'text-primary' : 'text-[#12122A]/40'

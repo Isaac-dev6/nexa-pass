@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   ShoppingBag, Calendar, MapPin, Clock,
-  QrCode, ChevronRight, Ticket, Users,
+  QrCode, Ticket, Users,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../contexts/ToastContext'
@@ -156,7 +156,7 @@ function EmptyState({ tab, onExplore }: { tab: SubTab; onExplore: () => void }) 
   )
 }
 
-function TicketCard({ ticket, onWip, onView }: { ticket: DisplayTicket; onWip: () => void; onView: () => void }) {
+function TicketCard({ ticket, onView }: { ticket: DisplayTicket; onView: () => void }) {
   const { label, cls } = statusConfig(ticket.status)
   const days = daysUntil(ticket.dateIso)
   const showCountdown = ticket.status === 'upcoming' && days > 0 && days <= 7
@@ -353,7 +353,6 @@ export function Orders() {
                 <TicketCard
                   key={ticket.id}
                   ticket={ticket}
-                  onWip={wip}
                   onView={() => navigate(`/ticket/${ticket.id}`)}
                 />
               ))}

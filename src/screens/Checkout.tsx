@@ -124,6 +124,7 @@ export function Checkout() {
   const totalPrice = state.unitPrice * state.quantity
 
   async function handlePayment() {
+    if (!state) return
     const digits = phone.replace(/\D/g, '')
     if (digits.length < 9) {
       showToast('Entre un numéro de téléphone valide (+242 XX XXX XXXX)')

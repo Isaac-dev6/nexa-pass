@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  User, Pencil, Lock, Heart, CreditCard, List, Bell, Clock,
+  Pencil, Lock, Heart, CreditCard, List, Bell, Clock,
   Tag, RefreshCw, Shield, Smartphone, Trash2, Info,
   FileText, Mail, LogOut, ChevronRight, X, Check, Camera, LayoutDashboard,
 } from 'lucide-react'
