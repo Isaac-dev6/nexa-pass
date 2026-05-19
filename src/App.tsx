@@ -9,6 +9,9 @@ import { Register } from './screens/Register'
 import { EventDetail } from './screens/EventDetail'
 import { Orders } from './screens/Orders'
 import { Explorer } from './screens/Explorer'
+import { OrganizerDashboard } from './screens/OrganizerDashboard'
+import { CreateEvent } from './screens/CreateEvent'
+import { Profile } from './screens/Profile'
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
@@ -40,6 +43,9 @@ function App() {
             <Route path="/event/:id" element={<PrivateRoute><AppShell><EventDetail /></AppShell></PrivateRoute>} />
             <Route path="/orders" element={<PrivateRoute><AppShell><Orders /></AppShell></PrivateRoute>} />
             <Route path="/explorer" element={<PrivateRoute><AppShell><Explorer /></AppShell></PrivateRoute>} />
+            <Route path="/organizer" element={<PrivateRoute><AppShell><OrganizerDashboard /></AppShell></PrivateRoute>} />
+            <Route path="/create-event" element={<PrivateRoute><AppShell><CreateEvent /></AppShell></PrivateRoute>} />
+            <Route path="/profile" element={<PrivateRoute><AppShell><Profile /></AppShell></PrivateRoute>} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
           </Routes>

@@ -1,4 +1,4 @@
-import { Compass, Search, Ticket, User, Plus, LogOut } from 'lucide-react'
+import { Compass, Search, Ticket, User, Plus, LogOut, LayoutDashboard } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../contexts/ToastContext'
@@ -28,6 +28,8 @@ export function Sidebar() {
 
   const fullName: string = user?.user_metadata?.full_name ?? 'Utilisateur'
   const initials = getInitials(fullName)
+  // TODO: restrict to role === 'organizer' when auth roles are configured
+  const isOrganizer = !!user
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -56,7 +58,7 @@ export function Sidebar() {
           return (
             <button
               key={path}
-              onClick={['/', '/orders', '/explorer'].includes(path) ? () => navigate(path) : wip}
+              onClick={['/', '/orders', '/explorer', '/organizer', '/profile'].includes(path) ? () => navigate(path) : wip}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all text-left ${
                 isActive
                   ? 'bg-primary/10 text-primary'
@@ -70,10 +72,28 @@ export function Sidebar() {
         })}
       </nav>
 
+      {/* Dashboard Pro — visible only for organizers */}
+      {isOrganizer && (
+        <div className="px-3 pb-2 border-t border-[#E5E7EB] pt-3 mt-1">
+          <button
+            onClick={() => navigate('/organizer')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all text-left ${
+              location.pathname === '/organizer'
+                ? 'bg-accent/10 text-accent'
+                : 'text-[#12122A]/60 hover:bg-[#F4F4FB] hover:text-[#12122A]'
+            }`}
+          >
+            <LayoutDashboard size={18} />
+            <span>Dashboard Pro</span>
+            <span className="ml-auto text-[10px] font-bold bg-accent/15 text-accent px-2 py-0.5 rounded-full">PRO</span>
+          </button>
+        </div>
+      )}
+
       {/* Create event button */}
       <div className="px-3 pb-4">
         <button
-          onClick={wip}
+          onClick={() => navigate('/create-event')}
           className="w-full py-3 rounded-xl text-white text-sm font-bold flex items-center justify-center gap-2 transition-opacity hover:opacity-90 active:scale-[0.98]"
           style={{ background: 'linear-gradient(135deg, #2563EB, #9333EA)' }}
         >

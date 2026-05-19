@@ -2,17 +2,18 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { Search, X, Calendar, MapPin, SlidersHorizontal, TrendingUp } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../contexts/ToastContext'
+import { useEvents } from '../hooks/useEvents'
+import type { SupabaseEvent } from '../hooks/useEvents'
 import { BottomNav } from '../components/ui/BottomNav'
 
-// ── Image aliases ─────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 
-const IMG_CONCERT = 'https://storage.googleapis.com/banani-generated-images/generated-images/43fb3cd6-fae1-4df7-8647-ab16c585f2b3.jpg'
-const IMG_SPORT   = 'https://storage.googleapis.com/banani-generated-images/generated-images/0f12b0b8-3b8c-43c9-aefb-09bda3b3548a.jpg'
+const FALLBACK_IMG = 'https://storage.googleapis.com/banani-generated-images/generated-images/43fb3cd6-fae1-4df7-8647-ab16c585f2b3.jpg'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface ExploreEvent {
-  id: number
+  id: string
   category: string
   title: string
   venue: string
@@ -25,47 +26,26 @@ interface ExploreEvent {
   imageUrl: string
 }
 
-// ── Mock data ─────────────────────────────────────────────────────────────────
+// ── Mapper ────────────────────────────────────────────────────────────────────
 
-const ALL_EVENTS: ExploreEvent[] = [
-  // Concerts
-  { id: 10, category: 'Concert', title: 'Fally Ipupa Live à Brazza', venue: 'Palais des Congrès', city: 'Brazzaville', date: 'Sam. 18 Juil. 2026', dateIso: '2026-07-18', time: '21h00', price: 10000, popularity: 2341, imageUrl: IMG_CONCERT },
-  { id: 11, category: 'Concert', title: 'Nuit R&B Brazzaville', venue: 'Club Émeraude', city: 'Brazzaville', date: 'Ven. 12 Juin 2026', dateIso: '2026-06-12', time: '22h00', price: 5000, popularity: 987, imageUrl: IMG_SPORT },
-  { id: 12, category: 'Concert', title: 'Festival des Grands Lacs', venue: 'Stade Éboué', city: 'Brazzaville', date: 'Sam. 8 Août 2026', dateIso: '2026-08-08', time: '18h00', price: 7500, popularity: 1456, imageUrl: IMG_CONCERT },
-  { id: 13, category: 'Concert', title: 'Soirée Afrobeats Pointe-Noire', venue: 'Espace Samba', city: 'Pointe-Noire', date: 'Sam. 27 Juin 2026', dateIso: '2026-06-27', time: '21h00', price: 6000, popularity: 743, imageUrl: IMG_SPORT },
-
-  // Sport
-  { id: 20, category: 'Sport', title: 'Derby de Brazzaville', venue: 'Stade Massamba-Débat', city: 'Brazzaville', date: 'Ven. 5 Juin 2026', dateIso: '2026-06-05', time: '16h00', price: 2000, popularity: 1240, imageUrl: IMG_SPORT },
-  { id: 21, category: 'Sport', title: 'Marathon de Brazzaville', venue: 'Corniche de Brazzaville', city: 'Brazzaville', date: 'Dim. 26 Juil. 2026', dateIso: '2026-07-26', time: '07h00', price: 0, popularity: 654, imageUrl: IMG_CONCERT },
-  { id: 22, category: 'Sport', title: 'Tournoi de Basketball CNSS', venue: 'Salle INJS', city: 'Brazzaville', date: 'Sam. 20 Juin 2026', dateIso: '2026-06-20', time: '14h00', price: 1000, popularity: 432, imageUrl: IMG_SPORT },
-  { id: 23, category: 'Sport', title: 'Open de Tennis Côte Sauvage', venue: 'Club Tennis', city: 'Pointe-Noire', date: 'Sam. 11 Juil. 2026', dateIso: '2026-07-11', time: '09h00', price: 0, popularity: 289, imageUrl: IMG_CONCERT },
-
-  // Culture
-  { id: 30, category: 'Culture', title: 'Expo Art Contemporain Congolais', venue: 'Musée National', city: 'Brazzaville', date: 'Jeu. 11 Juin 2026', dateIso: '2026-06-11', time: '10h00', price: 1500, popularity: 312, imageUrl: IMG_CONCERT },
-  { id: 31, category: 'Culture', title: 'Soirée Littéraire Congo Écrit', venue: 'Institut Français', city: 'Brazzaville', date: 'Mar. 23 Juin 2026', dateIso: '2026-06-23', time: '18h30', price: 0, popularity: 225, imageUrl: IMG_SPORT },
-  { id: 32, category: 'Culture', title: 'Théâtre Molière en Lingala', venue: 'Théâtre de Verdure', city: 'Brazzaville', date: 'Sam. 4 Juil. 2026', dateIso: '2026-07-04', time: '19h00', price: 2500, popularity: 387, imageUrl: IMG_CONCERT },
-  { id: 33, category: 'Culture', title: 'Semaine de la Mode Brazza', venue: 'CCI Congo', city: 'Brazzaville', date: 'Ven. 17 Oct. 2026', dateIso: '2026-10-17', time: '16h00', price: 5000, popularity: 512, imageUrl: IMG_SPORT },
-
-  // VIP
-  { id: 40, category: 'VIP', title: 'Brazza Vibe Fest', venue: 'Stade Éboué', city: 'Brazzaville', date: 'Sam. 23 Mai 2026', dateIso: '2026-05-23', time: '20h00', price: 15000, popularity: 1823, imageUrl: IMG_CONCERT },
-  { id: 41, category: 'VIP', title: 'Soirée Prestige Hotel Ledger', venue: 'Hotel Ledger Plaza', city: 'Brazzaville', date: 'Sam. 6 Sept. 2026', dateIso: '2026-09-06', time: '21h00', price: 25000, popularity: 456, imageUrl: IMG_SPORT },
-  { id: 42, category: 'VIP', title: 'Gala de Charité Brazzaville', venue: 'Sofitel Brazza', city: 'Brazzaville', date: 'Sam. 11 Juil. 2026', dateIso: '2026-07-11', time: '19h00', price: 50000, popularity: 389, imageUrl: IMG_CONCERT },
-
-  // Cinéma
-  { id: 50, category: 'Cinéma', title: 'Festival du Film Africain', venue: 'Ciné Vog', city: 'Brazzaville', date: 'Ven. 9 Oct. 2026', dateIso: '2026-10-09', time: '14h00', price: 3000, popularity: 678, imageUrl: IMG_SPORT },
-  { id: 51, category: 'Cinéma', title: 'Ciné en Plein Air Pointe-Noire', venue: 'Plage de Songolo', city: 'Pointe-Noire', date: 'Sam. 27 Juin 2026', dateIso: '2026-06-27', time: '20h00', price: 2000, popularity: 512, imageUrl: IMG_CONCERT },
-  { id: 52, category: 'Cinéma', title: 'Avant-Première Film Congolais', venue: 'Ciné Vog', city: 'Brazzaville', date: 'Ven. 3 Juil. 2026', dateIso: '2026-07-03', time: '19h30', price: 3500, popularity: 445, imageUrl: IMG_SPORT },
-
-  // Showcases
-  { id: 60, category: 'Showcase', title: 'Comedy Night Brazzaville', venue: 'Le New Palace', city: 'Brazzaville', date: 'Sam. 13 Juin 2026', dateIso: '2026-06-13', time: '21h00', price: 5000, popularity: 734, imageUrl: IMG_SPORT },
-  { id: 61, category: 'Showcase', title: 'DJ Afro House Night', venue: 'Club XY Brazzaville', city: 'Brazzaville', date: 'Ven. 19 Juin 2026', dateIso: '2026-06-19', time: '23h00', price: 8000, popularity: 891, imageUrl: IMG_CONCERT },
-  { id: 62, category: 'Showcase', title: 'Battle de Danse Urbaine', venue: 'Salle omnisports INJS', city: 'Brazzaville', date: 'Sam. 25 Juil. 2026', dateIso: '2026-07-25', time: '16h00', price: 2000, popularity: 567, imageUrl: IMG_SPORT },
-
-  // Festivals
-  { id: 70, category: 'Festival', title: 'Festival des Arts du Congo', venue: 'Centre Culturel Français', city: 'Brazzaville', date: 'Du 1 au 5 Août 2026', dateIso: '2026-08-01', time: 'Dès 10h00', price: 3000, popularity: 1102, imageUrl: IMG_CONCERT },
-  { id: 71, category: 'Festival', title: 'Ponton Fest Pointe-Noire', venue: "Ponton de l'Agip", city: 'Pointe-Noire', date: 'Sam. 15 Août 2026', dateIso: '2026-08-15', time: '16h00', price: 6000, popularity: 876, imageUrl: IMG_SPORT },
-  { id: 72, category: 'Festival', title: 'Brazza Urban Culture Fest', venue: 'Place de la République', city: 'Brazzaville', date: 'Du 3 au 5 Oct. 2026', dateIso: '2026-10-03', time: 'Dès 12h00', price: 4000, popularity: 934, imageUrl: IMG_CONCERT },
-]
+function toExploreEvent(e: SupabaseEvent): ExploreEvent {
+  const d = e.date ? new Date(e.date) : null
+  return {
+    id: e.id,
+    category: e.category ?? 'Concert',
+    title: e.title,
+    venue: e.location ?? '',
+    city: e.city ?? 'Brazzaville',
+    date: d
+      ? d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+      : 'Date à confirmer',
+    dateIso: e.date ? e.date.split('T')[0] : '',
+    time: d ? d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '',
+    price: 0,
+    popularity: 0,
+    imageUrl: e.cover_url ?? FALLBACK_IMG,
+  }
+}
 
 // ── Filter configs ────────────────────────────────────────────────────────────
 
@@ -79,9 +59,9 @@ const DATE_FILTERS = [
 ]
 
 const CITY_FILTERS = [
-  { id: 'Toutes',         label: '🗺️ Toutes' },
-  { id: 'Brazzaville',    label: '🏙️ Brazzaville' },
-  { id: 'Pointe-Noire',   label: '🌊 Pointe-Noire' },
+  { id: 'Toutes',       label: '🗺️ Toutes' },
+  { id: 'Brazzaville',  label: '🏙️ Brazzaville' },
+  { id: 'Pointe-Noire', label: '🌊 Pointe-Noire' },
 ]
 
 const CATEGORY_SECTIONS = [
@@ -97,10 +77,11 @@ const CATEGORY_SECTIONS = [
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatPrice(price: number) {
-  return price === 0 ? 'Gratuit' : `${price.toLocaleString('fr-FR')} FCFA`
+  return price === 0 ? 'Voir les prix' : `${price.toLocaleString('fr-FR')} FCFA`
 }
 
 function isInDateRange(dateIso: string, filter: string): boolean {
+  if (!dateIso) return true
   const date = new Date(dateIso)
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -127,6 +108,26 @@ function isInDateRange(dateIso: string, filter: string): boolean {
   return true
 }
 
+// ── Skeletons ─────────────────────────────────────────────────────────────────
+
+function TrendSkeleton() {
+  return <div className="shrink-0 w-[160px] h-[210px] rounded-2xl bg-[#E8E8F0] animate-pulse" />
+}
+
+function HorizSkeleton() {
+  return (
+    <div className="shrink-0 w-[210px] rounded-2xl bg-white border border-[#E5E7EB] overflow-hidden animate-pulse">
+      <div className="h-[115px] bg-[#E8E8F0]" />
+      <div className="p-3">
+        <div className="h-4 w-3/4 bg-[#E8E8F0] rounded-full mb-2" />
+        <div className="h-3 w-full bg-[#E8E8F0] rounded-full mb-1.5" />
+        <div className="h-3 w-2/3 bg-[#E8E8F0] rounded-full mb-2" />
+        <div className="h-4 w-1/3 bg-[#E8E8F0] rounded-full" />
+      </div>
+    </div>
+  )
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function TrendCard({ event, onNavigate }: { event: ExploreEvent; onNavigate: () => void }) {
@@ -136,7 +137,7 @@ function TrendCard({ event, onNavigate }: { event: ExploreEvent; onNavigate: () 
         <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
         <div className="absolute top-2.5 left-2.5 flex items-center gap-1 bg-black/40 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-          🔥 {event.popularity.toLocaleString('fr-FR')}
+          {event.category}
         </div>
         <div className="absolute bottom-0 left-0 right-0 p-3">
           <p className="text-white text-xs font-extrabold leading-tight line-clamp-2 mb-1">{event.title}</p>
@@ -168,7 +169,7 @@ function HorizCard({ event, onNavigate }: { event: ExploreEvent; onNavigate: () 
         </div>
         <div className="flex items-center gap-1 text-[11px] text-[#12122A]/55 mb-2">
           <MapPin size={10} className="shrink-0" />
-          <span className="truncate">{event.venue}</span>
+          <span className="truncate">{event.venue || event.city}</span>
         </div>
         <p className="text-sm font-extrabold text-primary">{formatPrice(event.price)}</p>
       </div>
@@ -226,16 +227,20 @@ function FilterPill({
 export function Explorer() {
   const navigate = useNavigate()
   const { showToast } = useToast()
+  const { events: rawEvents, loading } = useEvents()
   const wip = () => showToast('🚧 Cette section est en cours de construction')
 
-  const [searchValue, setSearchValue]       = useState('')
-  const [searchFocused, setSearchFocused]   = useState(false)
-  const [activeCategory, setActiveCategory] = useState('Tous')
+  const [searchValue, setSearchValue]           = useState('')
+  const [searchFocused, setSearchFocused]       = useState(false)
+  const [activeCategory, setActiveCategory]     = useState('Tous')
   const [activeDateFilter, setActiveDateFilter] = useState<string | null>(null)
-  const [activeCity, setActiveCity]         = useState('Toutes')
-  const [isSearchLoading, setIsSearchLoading] = useState(false)
-  const [displayedSearch, setDisplayedSearch] = useState('')
+  const [activeCity, setActiveCity]             = useState('Toutes')
+  const [isSearchLoading, setIsSearchLoading]   = useState(false)
+  const [displayedSearch, setDisplayedSearch]   = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
+
+  // Map Supabase events once
+  const allEvents = useMemo(() => rawEvents.map(toExploreEvent), [rawEvents])
 
   // Debounced search (400ms)
   useEffect(() => {
@@ -258,13 +263,13 @@ export function Explorer() {
   // Base filtered pool (category + date + city)
   const filteredPool = useMemo(
     () =>
-      ALL_EVENTS.filter((e) => {
+      allEvents.filter((e) => {
         const matchCat  = activeCategory === 'Tous' || e.category === activeCategory
         const matchDate = !activeDateFilter || isInDateRange(e.dateIso, activeDateFilter)
         const matchCity = activeCity === 'Toutes' || e.city === activeCity
         return matchCat && matchDate && matchCity
       }),
-    [activeCategory, activeDateFilter, activeCity]
+    [allEvents, activeCategory, activeDateFilter, activeCity]
   )
 
   const trending = useMemo(
@@ -281,14 +286,14 @@ export function Explorer() {
     [filteredPool]
   )
 
-  // Suggestions (instant, from ALL events)
+  // Suggestions (instant, from all events)
   const suggestions = useMemo(() => {
     if (!searchValue.trim()) return []
     const q = searchValue.toLowerCase()
-    return ALL_EVENTS.filter(
-      (e) => e.title.toLowerCase().includes(q) || e.venue.toLowerCase().includes(q)
-    ).slice(0, 5)
-  }, [searchValue])
+    return allEvents
+      .filter((e) => e.title.toLowerCase().includes(q) || e.venue.toLowerCase().includes(q))
+      .slice(0, 5)
+  }, [searchValue, allEvents])
 
   // Search results (debounced, respect filters)
   const searchResults = useMemo(() => {
@@ -305,7 +310,7 @@ export function Explorer() {
   const isSearchMode = displayedSearch.trim().length > 0
 
   const goToEvent = useCallback(
-    (id: number) => navigate(`/event/${id}`),
+    (id: string) => navigate(`/event/${id}`),
     [navigate]
   )
 
@@ -376,7 +381,7 @@ export function Explorer() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold truncate">{event.title}</p>
-                  <p className="text-xs text-[#12122A]/50 truncate">{event.category} · {event.venue}</p>
+                  <p className="text-xs text-[#12122A]/50 truncate">{event.category} · {event.venue || event.city}</p>
                 </div>
               </button>
             ))}
@@ -426,8 +431,31 @@ export function Explorer() {
 
       {/* ── Content ── */}
 
-      {/* Loader */}
-      {isSearchLoading && (
+      {/* Initial data loading skeleton */}
+      {loading && (
+        <>
+          <div className="mb-8">
+            <div className="flex items-center gap-2 px-5 mb-4">
+              <div className="w-4 h-4 rounded-full bg-[#E8E8F0] animate-pulse" />
+              <div className="h-4 w-28 bg-[#E8E8F0] rounded-full animate-pulse" />
+            </div>
+            <div className="pl-5 flex gap-3 overflow-x-auto scrollbar-hide pb-1">
+              {Array.from({ length: 4 }).map((_, i) => <TrendSkeleton key={i} />)}
+            </div>
+          </div>
+          <div className="mb-8">
+            <div className="flex justify-between items-center px-5 mb-4">
+              <div className="h-4 w-28 bg-[#E8E8F0] rounded-full animate-pulse" />
+            </div>
+            <div className="pl-5 flex gap-3 overflow-x-auto scrollbar-hide pb-1">
+              {Array.from({ length: 3 }).map((_, i) => <HorizSkeleton key={i} />)}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Search loading spinner */}
+      {!loading && isSearchLoading && (
         <div className="flex flex-col items-center justify-center py-16 gap-4">
           <div
             className="w-8 h-8 rounded-full border-[3px] animate-spin"
@@ -438,7 +466,7 @@ export function Explorer() {
       )}
 
       {/* Search results */}
-      {!isSearchLoading && isSearchMode && (
+      {!loading && !isSearchLoading && isSearchMode && (
         <div className="px-5">
           <p className="text-sm text-[#12122A]/50 font-medium mb-4">
             {searchResults.length > 0
@@ -466,9 +494,8 @@ export function Explorer() {
       )}
 
       {/* Discover view */}
-      {!isSearchLoading && !isSearchMode && (
+      {!loading && !isSearchLoading && !isSearchMode && (
         <>
-          {/* Trending section */}
           {trending.length > 0 && (
             <div className="mb-8">
               <div className="flex items-center gap-2 px-5 mb-4">
@@ -483,7 +510,6 @@ export function Explorer() {
             </div>
           )}
 
-          {/* Empty state when all filters combine to nothing */}
           {trending.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 px-5 text-center">
               <div className="w-14 h-14 rounded-full bg-[#E8E8F0] flex items-center justify-center mb-3">
@@ -503,7 +529,6 @@ export function Explorer() {
             </div>
           )}
 
-          {/* Category sections */}
           {categoryGroups.map((group) => (
             <div key={group.key} className="mb-8">
               <div className="flex justify-between items-center px-5 mb-4">

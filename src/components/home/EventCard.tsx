@@ -2,7 +2,7 @@ import { MapPin, ChevronRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 interface EventCardProps {
-  id: number
+  id: string
   category: string
   title: string
   venue: string

@@ -30,7 +30,7 @@ export function BottomNav() {
       </button>
 
       <button
-        onClick={() => navigate('/register')}
+        onClick={() => navigate('/create-event')}
         className="w-14 h-14 rounded-full bg-gradient-to-tr from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30 -mt-6 border-4 border-[#F4F4FB]"
       >
         <Plus size={24} className="text-white" />
@@ -45,7 +45,7 @@ export function BottomNav() {
       </button>
 
       <button
-        onClick={wip}
+        onClick={() => navigate('/profile')}
         className={`flex flex-col items-center gap-1 ${active('/profile')}`}
       >
         <User size={20} />

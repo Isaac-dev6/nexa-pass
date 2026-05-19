@@ -6,52 +6,9 @@ import { CategoryPills } from '../components/home/CategoryPills'
 import { EventCard } from '../components/home/EventCard'
 import { useToast } from '../contexts/ToastContext'
 import { useAuth } from '../contexts/AuthContext'
+import { useEvents } from '../hooks/useEvents'
 
-const heroEvent = {
-  badge: 'VIP',
-  title: 'Brazza Vibe Fest',
-  subtitle: "Le plus grand événement de l'année",
-  date: '15 Juillet 2024',
-  venue: 'Stade Éboué',
-  priceLabel: 'À partir de',
-  price: '15 000 FCFA',
-  imageUrl: 'https://storage.googleapis.com/banani-generated-images/generated-images/43fb3cd6-fae1-4df7-8647-ab16c585f2b3.jpg',
-}
-
-const recommendedEvents = [
-  {
-    id: 1,
-    category: 'Sport',
-    title: 'Derby de Brazzaville',
-    venue: 'Stade Massamba',
-    price: '2 000 FCFA',
-    imageUrl: 'https://storage.googleapis.com/banani-generated-images/generated-images/0f12b0b8-3b8c-43c9-aefb-09bda3b3548a.jpg',
-  },
-  {
-    id: 2,
-    category: 'Concert',
-    title: 'Nuit Jazz du Congo',
-    venue: 'Palais des Congrès',
-    price: '5 000 FCFA',
-    imageUrl: 'https://storage.googleapis.com/banani-generated-images/generated-images/0f12b0b8-3b8c-43c9-aefb-09bda3b3548a.jpg',
-  },
-  {
-    id: 3,
-    category: 'VIP',
-    title: 'Soirée Prestige Brazza',
-    venue: 'Hotel Ledger Plaza',
-    price: '25 000 FCFA',
-    imageUrl: 'https://storage.googleapis.com/banani-generated-images/generated-images/43fb3cd6-fae1-4df7-8647-ab16c585f2b3.jpg',
-  },
-  {
-    id: 4,
-    category: 'Cinéma',
-    title: 'Festival du Film Africain',
-    venue: 'Ciné Vog',
-    price: '3 000 FCFA',
-    imageUrl: 'https://storage.googleapis.com/banani-generated-images/generated-images/0f12b0b8-3b8c-43c9-aefb-09bda3b3548a.jpg',
-  },
-]
+const FALLBACK_IMG = 'https://storage.googleapis.com/banani-generated-images/generated-images/43fb3cd6-fae1-4df7-8647-ab16c585f2b3.jpg'
 
 const CATEGORY_MAP: Record<string, string> = {
   Concerts: 'Concert',
@@ -68,9 +25,43 @@ function getInitials(name: string): string {
     .join('')
 }
 
+function fmtDate(iso: string | null): string {
+  if (!iso) return 'Date à confirmer'
+  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+function HeroSkeleton() {
+  return (
+    <div className="px-5 mb-8">
+      <div className="rounded-[20px] h-[360px] bg-[#E8E8F0] animate-pulse" />
+      <div className="flex justify-center gap-2 mt-4">
+        <div className="w-6 h-1.5 bg-[#E8E8F0] rounded-full" />
+        <div className="w-1.5 h-1.5 bg-[#E8E8F0] rounded-full" />
+        <div className="w-1.5 h-1.5 bg-[#E8E8F0] rounded-full" />
+      </div>
+    </div>
+  )
+}
+
+function EventCardSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl p-3 flex gap-4 items-center border border-[#E5E7EB] animate-pulse">
+      <div className="w-20 h-20 rounded-xl bg-[#E8E8F0] shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="h-3 w-14 bg-[#E8E8F0] rounded-full mb-2" />
+        <div className="h-4 w-full bg-[#E8E8F0] rounded-full mb-2" />
+        <div className="h-3 w-2/3 bg-[#E8E8F0] rounded-full mb-2" />
+        <div className="h-3 w-1/4 bg-[#E8E8F0] rounded-full" />
+      </div>
+      <div className="w-10 h-10 rounded-full bg-[#E8E8F0] shrink-0" />
+    </div>
+  )
+}
+
 export function Home() {
   const { showToast } = useToast()
   const { user } = useAuth()
+  const { events, loading } = useEvents()
   const wip = () => showToast('🚧 Cette section est en cours de construction')
 
   const [activeCategory, setActiveCategory] = useState('Tous')
@@ -82,19 +73,26 @@ export function Home() {
   const initials = getInitials(fullName)
   const firstName = fullName.split(' ')[0]
 
-  const filteredEvents =
-    activeCategory === 'Tous'
-      ? recommendedEvents
-      : recommendedEvents.filter(
-          (e) => e.category === (CATEGORY_MAP[activeCategory] ?? activeCategory)
-        )
+  const heroEvent = events[0] ?? null
 
-  const displayedEvents = searchValue.trim()
-    ? filteredEvents.filter((e) =>
-        e.title.toLowerCase().includes(searchValue.toLowerCase()) ||
-        e.venue.toLowerCase().includes(searchValue.toLowerCase())
-      )
-    : filteredEvents
+  const filteredEvents = events.filter((e) => {
+    const matchCat =
+      activeCategory === 'Tous' ||
+      e.category === (CATEGORY_MAP[activeCategory] ?? activeCategory)
+    const q = searchValue.toLowerCase()
+    const matchSearch =
+      !searchValue.trim() ||
+      e.title.toLowerCase().includes(q) ||
+      (e.location ?? '').toLowerCase().includes(q) ||
+      (e.city ?? '').toLowerCase().includes(q)
+    return matchCat && matchSearch
+  })
+
+  // When no filters active, skip the hero event from the card list (it's shown in HeroCard)
+  const displayedEvents =
+    activeCategory === 'Tous' && !searchValue.trim()
+      ? filteredEvents.slice(1)
+      : filteredEvents
 
   return (
     <div className="bg-[#F4F4FB] text-[#12122A] pb-24 md:pb-10 font-body w-full min-h-screen relative overflow-x-hidden">
@@ -156,8 +154,24 @@ export function Home() {
       </div>
 
       <CategoryPills activeCategory={activeCategory} onChange={setActiveCategory} />
-      <HeroCard {...heroEvent} />
 
+      {/* Hero card */}
+      {loading ? (
+        <HeroSkeleton />
+      ) : heroEvent ? (
+        <HeroCard
+          badge={heroEvent.category ?? 'Événement'}
+          title={heroEvent.title}
+          subtitle={heroEvent.description?.split('\n')[0]?.slice(0, 70) ?? 'Découvrez cet événement'}
+          date={fmtDate(heroEvent.date)}
+          venue={heroEvent.location ?? heroEvent.city ?? 'Brazzaville'}
+          priceLabel="À partir de"
+          price="Voir les prix"
+          imageUrl={heroEvent.cover_url ?? FALLBACK_IMG}
+        />
+      ) : null}
+
+      {/* Event list */}
       <div className="px-5">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-bold">Recommandés pour vous</h3>
@@ -166,11 +180,25 @@ export function Home() {
           </button>
         </div>
         <div className="flex flex-col gap-4 md:grid md:grid-cols-2">
-          {displayedEvents.length > 0 ? (
-            displayedEvents.map((event) => <EventCard key={event.id} {...event} />)
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => <EventCardSkeleton key={i} />)
+          ) : displayedEvents.length > 0 ? (
+            displayedEvents.map((event) => (
+              <EventCard
+                key={event.id}
+                id={event.id}
+                category={event.category ?? 'Événement'}
+                title={event.title}
+                venue={event.location ?? event.city ?? 'Brazzaville'}
+                price="Voir les prix"
+                imageUrl={event.cover_url ?? FALLBACK_IMG}
+              />
+            ))
           ) : (
             <p className="text-center text-sm text-[#12122A]/40 py-8 md:col-span-2">
-              Aucun événement dans cette catégorie.
+              {events.length === 0
+                ? 'Aucun événement disponible pour le moment.'
+                : 'Aucun événement dans cette catégorie.'}
             </p>
           )}
         </div>
