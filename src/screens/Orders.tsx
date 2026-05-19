@@ -5,15 +5,18 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../contexts/ToastContext'
+import { useAuth } from '../contexts/AuthContext'
+import { useTickets } from '../hooks/useEvents'
+import type { SupabaseTicket } from '../hooks/useEvents'
 import { BottomNav } from '../components/ui/BottomNav'
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 type TicketStatus = 'upcoming' | 'transferred' | 'cancelled' | 'past'
 type SubTab = TicketStatus
 type MainTab = 'tickets' | 'contributions'
 
-interface MockTicket {
+interface DisplayTicket {
   id: string
   status: TicketStatus
   eventTitle: string
@@ -23,113 +26,57 @@ interface MockTicket {
   venue: string
   ticketType: string
   quantity: number
-  price: number
+  totalPrice: number
   imageUrl: string
   orderRef: string
+  qrCode: string | null
 }
-
-interface MockContrib {
-  id: string
-  title: string
-  description: string
-  contributed: number
-  goal: number
-  participants: number
-  imageUrl: string
-}
-
-// ── Mock data ────────────────────────────────────────────────────────────────
-
-const MOCK_TICKETS: MockTicket[] = [
-  {
-    id: 'T001',
-    status: 'upcoming',
-    eventTitle: 'Brazza Vibe Fest',
-    dateIso: '2026-05-23',
-    dateLabel: 'Sam. 23 Mai 2026',
-    time: '20h00',
-    venue: 'Stade Éboué, Brazzaville',
-    ticketType: 'VIP',
-    quantity: 1,
-    price: 15000,
-    imageUrl: 'https://storage.googleapis.com/banani-generated-images/generated-images/43fb3cd6-fae1-4df7-8647-ab16c585f2b3.jpg',
-    orderRef: 'NXP-2026-002',
-  },
-  {
-    id: 'T002',
-    status: 'upcoming',
-    eventTitle: 'Derby de Brazzaville',
-    dateIso: '2026-06-05',
-    dateLabel: 'Ven. 5 Juin 2026',
-    time: '16h00',
-    venue: 'Stade Massamba-Débat',
-    ticketType: 'Tribune',
-    quantity: 2,
-    price: 2000,
-    imageUrl: 'https://storage.googleapis.com/banani-generated-images/generated-images/0f12b0b8-3b8c-43c9-aefb-09bda3b3548a.jpg',
-    orderRef: 'NXP-2026-001',
-  },
-  {
-    id: 'T003',
-    status: 'past',
-    eventTitle: 'Nuit Jazz du Congo',
-    dateIso: '2026-03-14',
-    dateLabel: 'Ven. 14 Mars 2026',
-    time: '20h00',
-    venue: 'Palais des Congrès',
-    ticketType: 'Standard',
-    quantity: 1,
-    price: 5000,
-    imageUrl: 'https://storage.googleapis.com/banani-generated-images/generated-images/0f12b0b8-3b8c-43c9-aefb-09bda3b3548a.jpg',
-    orderRef: 'NXP-2026-003',
-  },
-  {
-    id: 'T004',
-    status: 'cancelled',
-    eventTitle: 'Soirée Prestige Brazza',
-    dateIso: '2026-04-12',
-    dateLabel: 'Dim. 12 Avril 2026',
-    time: '21h00',
-    venue: 'Hotel Ledger Plaza',
-    ticketType: 'Prestige',
-    quantity: 1,
-    price: 25000,
-    imageUrl: 'https://storage.googleapis.com/banani-generated-images/generated-images/43fb3cd6-fae1-4df7-8647-ab16c585f2b3.jpg',
-    orderRef: 'NXP-2026-004',
-  },
-]
-
-const MOCK_CONTRIBS: MockContrib[] = [
-  {
-    id: 'C001',
-    title: 'Cagnotte Anniversaire Sarah',
-    description: "On collecte pour offrir une surprise à Sarah pour ses 30 ans — concert + dîner !",
-    contributed: 45000,
-    goal: 100000,
-    participants: 12,
-    imageUrl: 'https://storage.googleapis.com/banani-generated-images/generated-images/43fb3cd6-fae1-4df7-8647-ab16c585f2b3.jpg',
-  },
-  {
-    id: 'C002',
-    title: 'Sortie Concert Groupe',
-    description: "Collecte pour les billets du prochain grand concert de Brazzaville — on y va à 6 !",
-    contributed: 55000,
-    goal: 80000,
-    participants: 6,
-    imageUrl: 'https://storage.googleapis.com/banani-generated-images/generated-images/0f12b0b8-3b8c-43c9-aefb-09bda3b3548a.jpg',
-  },
-]
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
+const FALLBACK_IMG = 'https://storage.googleapis.com/banani-generated-images/generated-images/43fb3cd6-fae1-4df7-8647-ab16c585f2b3.jpg'
+
 const SUB_TABS: { id: SubTab; label: string }[] = [
-  { id: 'upcoming', label: 'À venir' },
+  { id: 'upcoming',    label: 'À venir' },
   { id: 'transferred', label: 'Transférés' },
-  { id: 'cancelled', label: 'Annulés' },
-  { id: 'past', label: 'Passés' },
+  { id: 'cancelled',   label: 'Annulés' },
+  { id: 'past',        label: 'Passés' },
 ]
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Mapper ────────────────────────────────────────────────────────────────────
+
+function toDisplayTicket(t: SupabaseTicket): DisplayTicket {
+  const eventDate = t.events?.date ? new Date(t.events.date) : null
+  const now = new Date()
+
+  let status: TicketStatus
+  if (t.status === 'cancelled')   status = 'cancelled'
+  else if (t.status === 'transferred') status = 'transferred'
+  else if (eventDate && eventDate < now) status = 'past'
+  else status = 'upcoming'
+
+  return {
+    id: t.id,
+    status,
+    eventTitle: t.events?.title ?? 'Événement inconnu',
+    dateIso: eventDate ? eventDate.toISOString().split('T')[0] : '',
+    dateLabel: eventDate
+      ? eventDate.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
+      : 'Date à confirmer',
+    time: eventDate
+      ? eventDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+      : '—',
+    venue: t.events?.location ?? t.events?.city ?? '',
+    ticketType: t.category,
+    quantity: t.quantity,
+    totalPrice: t.total_price,
+    imageUrl: t.events?.cover_url ?? FALLBACK_IMG,
+    orderRef: `NXP-${t.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`,
+    qrCode: t.qr_code,
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function daysUntil(dateIso: string): number {
   const today = new Date()
@@ -160,6 +107,31 @@ function emptyConfig(tab: SubTab) {
   }
 }
 
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+
+function TicketSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm overflow-hidden animate-pulse">
+      <div className="h-[140px] bg-[#E8E8F0]" />
+      <div className="px-4 pt-3 pb-4">
+        <div className="h-4 w-3/4 bg-[#E8E8F0] rounded-full mb-2" />
+        <div className="h-3 w-1/2 bg-[#E8E8F0] rounded-full mb-1.5" />
+        <div className="h-3 w-2/3 bg-[#E8E8F0] rounded-full mb-4" />
+        <div className="relative flex items-center my-1 mb-4">
+          <div className="w-6 h-6 rounded-full bg-[#E8E8F0] shrink-0 -ml-3" />
+          <div className="flex-1 h-0.5 bg-[#E8E8F0]" />
+          <div className="w-6 h-6 rounded-full bg-[#E8E8F0] shrink-0 -mr-3" />
+        </div>
+        <div className="flex justify-between mb-4">
+          <div className="h-8 w-[40%] bg-[#E8E8F0] rounded-lg" />
+          <div className="h-8 w-[35%] bg-[#E8E8F0] rounded-lg" />
+        </div>
+        <div className="h-11 w-full bg-[#E8E8F0] rounded-xl" />
+      </div>
+    </div>
+  )
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function EmptyState({ tab, onExplore }: { tab: SubTab; onExplore: () => void }) {
@@ -184,7 +156,7 @@ function EmptyState({ tab, onExplore }: { tab: SubTab; onExplore: () => void }) 
   )
 }
 
-function TicketCard({ ticket, onWip }: { ticket: MockTicket; onWip: () => void }) {
+function TicketCard({ ticket, onWip }: { ticket: DisplayTicket; onWip: () => void }) {
   const { label, cls } = statusConfig(ticket.status)
   const days = daysUntil(ticket.dateIso)
   const showCountdown = ticket.status === 'upcoming' && days > 0 && days <= 7
@@ -214,10 +186,12 @@ function TicketCard({ ticket, onWip }: { ticket: MockTicket; onWip: () => void }
           <Calendar size={12} className="shrink-0" />
           <span>{ticket.dateLabel} · {ticket.time}</span>
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-[#12122A]/55 mb-3">
-          <MapPin size={12} className="shrink-0" />
-          <span>{ticket.venue}</span>
-        </div>
+        {ticket.venue && (
+          <div className="flex items-center gap-1.5 text-xs text-[#12122A]/55 mb-3">
+            <MapPin size={12} className="shrink-0" />
+            <span>{ticket.venue}</span>
+          </div>
+        )}
 
         {showCountdown && (
           <div className="inline-flex items-center gap-1.5 bg-orange-50 border border-orange-100 px-2.5 py-1 rounded-full mb-3">
@@ -229,7 +203,7 @@ function TicketCard({ ticket, onWip }: { ticket: MockTicket; onWip: () => void }
         )}
       </div>
 
-      {/* Ticket perforation separator */}
+      {/* Perforation separator */}
       <div className="relative flex items-center my-1">
         <div className="w-6 h-6 rounded-full bg-[#F4F4FB] shrink-0 -ml-3 z-10" />
         <div className="flex-1 border-t-2 border-dashed border-[#E5E7EB]" />
@@ -250,7 +224,7 @@ function TicketCard({ ticket, onWip }: { ticket: MockTicket; onWip: () => void }
           </div>
           <div className="text-right">
             <p className="text-[11px] text-[#12122A]/40 font-medium uppercase tracking-wide mb-0.5">Prix payé</p>
-            <p className="text-sm font-bold text-primary">{formatPrice(ticket.price * ticket.quantity)}</p>
+            <p className="text-sm font-bold text-primary">{formatPrice(ticket.totalPrice)}</p>
           </div>
         </div>
 
@@ -278,55 +252,12 @@ function TicketCard({ ticket, onWip }: { ticket: MockTicket; onWip: () => void }
             <span className="text-sm font-semibold text-red-400">Billet annulé</span>
           </div>
         )}
+        {ticket.status === 'transferred' && (
+          <div className="w-full h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center">
+            <span className="text-sm font-semibold text-blue-400">Billet transféré</span>
+          </div>
+        )}
       </div>
-    </div>
-  )
-}
-
-function ContribCard({ contrib, onWip }: { contrib: MockContrib; onWip: () => void }) {
-  const pct = Math.min(100, Math.round((contrib.contributed / contrib.goal) * 100))
-  return (
-    <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-4">
-      <div className="flex items-start gap-3 mb-4">
-        <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0">
-          <img src={contrib.imageUrl} alt={contrib.title} className="w-full h-full object-cover" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-extrabold text-sm leading-tight mb-0.5 truncate">{contrib.title}</h3>
-          <p className="text-xs text-[#12122A]/50 leading-relaxed line-clamp-2">{contrib.description}</p>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-1.5 text-xs text-[#12122A]/50 mb-3">
-        <Users size={12} />
-        <span>{contrib.participants} participants</span>
-      </div>
-
-      {/* Progress bar */}
-      <div className="mb-3">
-        <div className="flex justify-between text-xs font-semibold mb-1.5">
-          <span className="text-[#12122A]/50">Progression</span>
-          <span className="text-primary">{formatPrice(contrib.contributed)} / {formatPrice(contrib.goal)}</span>
-        </div>
-        <div className="h-2 bg-[#F4F4FB] rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{
-              width: `${pct}%`,
-              background: 'linear-gradient(90deg, #2563EB, #9333EA)',
-            }}
-          />
-        </div>
-        <p className="text-right text-[11px] text-[#12122A]/40 mt-1 font-medium">{pct}% de l'objectif atteint</p>
-      </div>
-
-      <button
-        onClick={onWip}
-        className="w-full h-10 rounded-xl border border-primary text-primary text-sm font-bold flex items-center justify-center gap-1.5 transition-colors hover:bg-primary/5 active:scale-[0.98]"
-      >
-        Voir la cagnotte
-        <ChevronRight size={14} />
-      </button>
     </div>
   )
 }
@@ -336,13 +267,16 @@ function ContribCard({ contrib, onWip }: { contrib: MockContrib; onWip: () => vo
 export function Orders() {
   const navigate = useNavigate()
   const { showToast } = useToast()
+  const { user } = useAuth()
+  const { tickets: rawTickets, loading } = useTickets(user?.id)
   const wip = () => showToast('🚧 Cette section est en cours de construction')
 
   const [mainTab, setMainTab] = useState<MainTab>('tickets')
   const [subTab, setSubTab] = useState<SubTab>('upcoming')
 
-  const upcomingCount = MOCK_TICKETS.filter((t) => t.status === 'upcoming').length
-  const filtered = MOCK_TICKETS.filter((t) => t.status === subTab)
+  const allTickets = rawTickets.map(toDisplayTicket)
+  const upcomingCount = allTickets.filter((t) => t.status === 'upcoming').length
+  const filtered = allTickets.filter((t) => t.status === subTab)
 
   return (
     <div
@@ -405,8 +339,13 @@ export function Orders() {
             ))}
           </div>
 
-          {/* Ticket list or empty state */}
-          {filtered.length === 0 ? (
+          {/* Loading skeleton */}
+          {loading ? (
+            <div className="px-5 flex flex-col gap-4 md:grid md:grid-cols-2">
+              <TicketSkeleton />
+              <TicketSkeleton />
+            </div>
+          ) : filtered.length === 0 ? (
             <EmptyState tab={subTab} onExplore={() => navigate('/')} />
           ) : (
             <div className="px-5 flex flex-col gap-4 md:grid md:grid-cols-2">
@@ -420,32 +359,22 @@ export function Orders() {
 
       {/* ── CONTRIBUTIONS TAB ── */}
       {mainTab === 'contributions' && (
-        <>
-          {MOCK_CONTRIBS.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 px-5 text-center">
-              <div className="w-16 h-16 rounded-full bg-[#E8E8F0] flex items-center justify-center mb-4">
-                <Users size={26} className="text-[#12122A]/25" />
-              </div>
-              <h3 className="font-extrabold text-[#12122A] mb-2">Aucune contribution</h3>
-              <p className="text-sm text-[#12122A]/50 max-w-[240px] leading-relaxed mb-6">
-                Tu n'as pas encore participé à une cagnotte. Rejoins une cagnotte ou crée la tienne !
-              </p>
-              <button
-                onClick={wip}
-                className="px-6 py-3 rounded-xl text-white text-sm font-bold transition-opacity hover:opacity-90"
-                style={{ background: 'linear-gradient(135deg, #2563EB, #9333EA)' }}
-              >
-                Découvrir les cagnottes
-              </button>
-            </div>
-          ) : (
-            <div className="px-5 flex flex-col gap-4 md:grid md:grid-cols-2">
-              {MOCK_CONTRIBS.map((c) => (
-                <ContribCard key={c.id} contrib={c} onWip={wip} />
-              ))}
-            </div>
-          )}
-        </>
+        <div className="flex flex-col items-center justify-center py-16 px-5 text-center">
+          <div className="w-16 h-16 rounded-full bg-[#E8E8F0] flex items-center justify-center mb-4">
+            <Users size={26} className="text-[#12122A]/25" />
+          </div>
+          <h3 className="font-extrabold text-[#12122A] mb-2">Aucune contribution</h3>
+          <p className="text-sm text-[#12122A]/50 max-w-[240px] leading-relaxed mb-6">
+            Tu n'as pas encore participé à une cagnotte. Rejoins une cagnotte ou crée la tienne !
+          </p>
+          <button
+            onClick={wip}
+            className="px-6 py-3 rounded-xl text-white text-sm font-bold transition-opacity hover:opacity-90"
+            style={{ background: 'linear-gradient(135deg, #2563EB, #9333EA)' }}
+          >
+            Découvrir les cagnottes
+          </button>
+        </div>
       )}
 
       <BottomNav />
