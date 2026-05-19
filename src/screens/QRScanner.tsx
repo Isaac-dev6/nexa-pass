@@ -8,6 +8,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useToast } from '../contexts/ToastContext'
+import { useAuth } from '../contexts/AuthContext'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -17,6 +18,7 @@ interface ScanResult {
   kind: ResultKind
   eventTitle?: string
   category?: string
+  usedAt?: string
 }
 
 interface HistoryEntry {
@@ -116,6 +118,7 @@ function ScanFrame() {
 export function QRScanner() {
   const navigate = useNavigate()
   const { showToast } = useToast()
+  const { user } = useAuth()
 
   // Scanner
   const scannerRef = useRef<Html5Qrcode | null>(null)
@@ -151,7 +154,7 @@ export function QRScanner() {
 
     const { data, error } = await supabase
       .from('tickets')
-      .select('id, status, category, events(title)')
+      .select('id, status, category, used_at, events(title)')
       // ilike = case-insensitive match (no wildcards → acts as eq but case-blind)
       .ilike('qr_code', code)
       .maybeSingle()
@@ -176,12 +179,15 @@ export function QRScanner() {
         kind: 'used',
         eventTitle: (data.events as { title?: string } | null)?.title,
         category: data.category as string,
+        usedAt: (data as { used_at?: string }).used_at,
       })
       return
     }
 
     const { error: updateErr } = await supabase
-      .from('tickets').update({ status: 'used' }).eq('id', data.id)
+      .from('tickets')
+      .update({ status: 'used', used_at: new Date().toISOString(), used_by: user?.id ?? null })
+      .eq('id', data.id)
     if (updateErr) console.error('[QRScanner] Update error:', updateErr.message)
 
     console.log('[QRScanner] ✅ Ticket validated & marked used:', data.id)
@@ -571,6 +577,14 @@ export function QRScanner() {
                 )}
                 {result.category && (
                   <p className="text-white/35 text-xs mt-1">{result.category}</p>
+                )}
+                {result.kind === 'used' && result.usedAt && (
+                  <p className="text-white/35 text-xs mt-2">
+                    Scanné le{' '}
+                    {new Date(result.usedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                    {' à '}
+                    {new Date(result.usedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
                 )}
               </div>
               <button

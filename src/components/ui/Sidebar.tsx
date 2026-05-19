@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../contexts/ToastContext'
 import { supabase } from '../../lib/supabase'
+import { useIsOrganizer } from '../../hooks/useIsOrganizer'
 
 function getInitials(name: string): string {
   return name
@@ -26,6 +27,7 @@ export function Sidebar() {
   const { showToast } = useToast()
   const wip = () => showToast('🚧 Cette section est en cours de construction')
 
+  const { isOrganizer } = useIsOrganizer(user?.id)
   const fullName: string = user?.user_metadata?.full_name ?? 'Utilisateur'
   const initials = getInitials(fullName)
 
@@ -70,21 +72,23 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Dashboard Pro */}
-      <div className="px-3 pb-2 border-t border-[#E5E7EB] pt-3 mt-1">
-        <button
-          onClick={() => navigate('/organizer')}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all text-left ${
-            location.pathname === '/organizer'
-              ? 'bg-accent/10 text-accent'
-              : 'text-[#12122A]/60 hover:bg-[#F4F4FB] hover:text-[#12122A]'
-          }`}
-        >
-          <LayoutDashboard size={18} />
-          <span>Dashboard Pro</span>
-          <span className="ml-auto text-[10px] font-bold bg-accent/15 text-accent px-2 py-0.5 rounded-full">PRO</span>
-        </button>
-      </div>
+      {/* Dashboard Pro — only if organizer */}
+      {isOrganizer && (
+        <div className="px-3 pb-2 border-t border-[#E5E7EB] pt-3 mt-1">
+          <button
+            onClick={() => navigate('/organizer')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all text-left ${
+              location.pathname === '/organizer'
+                ? 'bg-accent/10 text-accent'
+                : 'text-[#12122A]/60 hover:bg-[#F4F4FB] hover:text-[#12122A]'
+            }`}
+          >
+            <LayoutDashboard size={18} />
+            <span>Dashboard Pro</span>
+            <span className="ml-auto text-[10px] font-bold bg-accent/15 text-accent px-2 py-0.5 rounded-full">PRO</span>
+          </button>
+        </div>
+      )}
 
       {/* Create event button */}
       <div className="px-3 pb-4">

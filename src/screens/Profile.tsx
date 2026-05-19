@@ -10,6 +10,8 @@ import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { supabase } from '../lib/supabase'
 import { BottomNav } from '../components/ui/BottomNav'
+import { useIsOrganizer } from '../hooks/useIsOrganizer'
+import { useTickets } from '../hooks/useEvents'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -210,6 +212,11 @@ export function Profile() {
   const { showToast } = useToast()
   const wip = () => showToast('🚧 Cette section est en cours de construction')
 
+  const { isOrganizer } = useIsOrganizer(user?.id)
+  const { tickets } = useTickets(user?.id)
+  const ticketCount = tickets.length
+  const attendedCount = tickets.filter((t) => t.events?.date && new Date(t.events.date) < new Date()).length
+
   // Profile data
   const fullName: string = user?.user_metadata?.full_name ?? 'Utilisateur'
   const initials = getInitials(fullName)
@@ -346,14 +353,14 @@ export function Profile() {
       <div className="mx-5 mb-6 bg-white rounded-2xl border border-[#E5E7EB] shadow-sm px-4 py-5">
         <div className="flex items-center">
           <div className="flex-1 flex flex-col items-center">
-            <p className="text-2xl font-extrabold text-[#12122A]">0</p>
+            <p className="text-2xl font-extrabold text-[#12122A]">{attendedCount}</p>
             <p className="text-[11px] text-[#12122A]/45 text-center leading-tight mt-0.5 font-medium">
               Événements<br />assistés
             </p>
           </div>
           <div className="w-px h-12 bg-[#E5E7EB]" />
           <div className="flex-1 flex flex-col items-center">
-            <p className="text-2xl font-extrabold text-[#12122A]">0</p>
+            <p className="text-2xl font-extrabold text-[#12122A]">{ticketCount}</p>
             <p className="text-[11px] text-[#12122A]/45 text-center leading-tight mt-0.5 font-medium">
               Billets<br />achetés
             </p>
@@ -377,22 +384,24 @@ export function Profile() {
         <SettingsSection title="Sécurité" items={securityItems} />
         <SettingsSection title="À propos" items={aboutItems} />
 
-        {/* Dashboard Pro */}
-        <button
-          onClick={() => navigate('/organizer')}
-          className="w-full h-14 rounded-2xl flex items-center justify-center gap-2.5 border font-bold text-sm transition-all active:scale-[0.98]"
-          style={{
-            background: 'linear-gradient(135deg,rgba(37,99,235,0.06),rgba(147,51,234,0.06))',
-            borderColor: 'rgba(37,99,235,0.2)',
-            color: '#2563EB',
-          }}
-        >
-          <LayoutDashboard size={18} />
-          Dashboard Pro
-          <span className="ml-1 text-[10px] font-bold bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">
-            PRO
-          </span>
-        </button>
+        {/* Dashboard Pro — only if organizer */}
+        {isOrganizer && (
+          <button
+            onClick={() => navigate('/organizer')}
+            className="w-full h-14 rounded-2xl flex items-center justify-center gap-2.5 border font-bold text-sm transition-all active:scale-[0.98]"
+            style={{
+              background: 'linear-gradient(135deg,rgba(37,99,235,0.06),rgba(147,51,234,0.06))',
+              borderColor: 'rgba(37,99,235,0.2)',
+              color: '#2563EB',
+            }}
+          >
+            <LayoutDashboard size={18} />
+            Dashboard Pro
+            <span className="ml-1 text-[10px] font-bold bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">
+              PRO
+            </span>
+          </button>
+        )}
 
         {/* Déconnexion */}
         <button

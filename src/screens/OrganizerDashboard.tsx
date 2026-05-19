@@ -10,7 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../contexts/ToastContext'
 import { useAuth } from '../contexts/AuthContext'
-import { useOrganizerEvents } from '../hooks/useEvents'
+import { useOrganizerEvents, useOrganizerStats, formatTimeAgo } from '../hooks/useEvents'
 import type { SupabaseEvent } from '../hooks/useEvents'
 import { BottomNav } from '../components/ui/BottomNav'
 
@@ -30,36 +30,14 @@ interface OrgEvent {
   imageUrl: string
 }
 
-interface Sale {
-  id: string
-  buyerName: string
-  initials: string
-  ticketType: string
-  amount: number
-  timeAgo: string
-  avatarGradient: string
-}
-
-// ── Mock data (sales + chart — requires orders table) ─────────────────────────
-
 const FALLBACK_IMG = 'https://storage.googleapis.com/banani-generated-images/generated-images/43fb3cd6-fae1-4df7-8647-ab16c585f2b3.jpg'
 
-const MOCK_SALES: Sale[] = [
-  { id: 'S1', buyerName: 'Jean-Baptiste Mouamba', initials: 'JM', ticketType: 'VIP',        amount: 15000, timeAgo: 'Il y a 14 min', avatarGradient: 'linear-gradient(135deg,#2563EB,#9333EA)' },
-  { id: 'S2', buyerName: 'Sarah Makosso',         initials: 'SM', ticketType: 'Standard',   amount:  5000, timeAgo: 'Il y a 1h',     avatarGradient: 'linear-gradient(135deg,#9333EA,#ec4899)' },
-  { id: 'S3', buyerName: 'Rodrigue Itoua',        initials: 'RI', ticketType: 'Tribune',    amount:  2000, timeAgo: 'Il y a 2h',     avatarGradient: 'linear-gradient(135deg,#10b981,#2563EB)' },
-  { id: 'S4', buyerName: 'Grâce Mbemba',          initials: 'GM', ticketType: 'VIP',        amount: 15000, timeAgo: 'Il y a 3h',     avatarGradient: 'linear-gradient(135deg,#f59e0b,#ef4444)' },
-  { id: 'S5', buyerName: 'Patrick Loemba',        initials: 'PL', ticketType: 'Early Bird', amount:  3500, timeAgo: 'Il y a 5h',     avatarGradient: 'linear-gradient(135deg,#2563EB,#10b981)' },
-]
-
-const CHART_DATA = [
-  { day: '13 Mai', ventes: 45000 },
-  { day: '14 Mai', ventes: 120000 },
-  { day: '15 Mai', ventes: 85000 },
-  { day: '16 Mai', ventes: 215000 },
-  { day: '17 Mai', ventes: 178000 },
-  { day: '18 Mai', ventes: 325000 },
-  { day: '19 Mai', ventes: 182000 },
+const AVATAR_GRADIENTS = [
+  'linear-gradient(135deg,#2563EB,#9333EA)',
+  'linear-gradient(135deg,#9333EA,#ec4899)',
+  'linear-gradient(135deg,#10b981,#2563EB)',
+  'linear-gradient(135deg,#f59e0b,#ef4444)',
+  'linear-gradient(135deg,#2563EB,#10b981)',
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -156,45 +134,52 @@ export function OrganizerDashboard() {
   const { showToast } = useToast()
   const { user } = useAuth()
   const { events: rawEvents, loading: eventsLoading } = useOrganizerEvents(user?.id)
+  const orgStats = useOrganizerStats(user?.id)
   const wip = () => showToast('🚧 Cette section est en cours de construction')
 
   const orgName = user?.user_metadata?.full_name ?? 'Organisateur'
-  const orgEvents = rawEvents.map(toOrgEvent)
   const activeCount = rawEvents.filter((e) => e.status === 'active').length
+
+  const orgEvents: OrgEvent[] = rawEvents.map((e) => {
+    const perEvent = orgStats.perEvent[e.id] ?? { sold: 0, revenue: 0 }
+    return {
+      ...toOrgEvent(e),
+      sold: perEvent.sold,
+      revenue: perEvent.revenue,
+    }
+  })
 
   const STATS = [
     {
       label: 'Billets vendus',
-      value: '1 078',
+      value: orgStats.loading ? '—' : orgStats.totalSold.toLocaleString('fr-FR'),
       icon: Ticket,
       iconBg: 'linear-gradient(135deg,#2563EB,#3b82f6)',
-      delta: '+12%',
+      delta: `${orgStats.totalSold}`,
       up: true,
     },
     {
-      label: 'Revenus',
-      value: '15,67 M',
-      unit: 'FCFA',
+      label: 'Revenus totaux',
+      value: orgStats.loading ? '—' : formatRevenue(orgStats.revenue),
       icon: TrendingUp,
       iconBg: 'linear-gradient(135deg,#9333EA,#ec4899)',
-      delta: '+8%',
+      delta: `${orgStats.ticketCount} ventes`,
       up: true,
     },
     {
-      label: 'Taux remplissage',
-      value: '78',
-      unit: '%',
+      label: 'Ventes (7j)',
+      value: orgStats.loading ? '—' : formatRevenue(orgStats.chartData.reduce((s, d) => s + d.ventes, 0)),
       icon: BarChart2,
       iconBg: 'linear-gradient(135deg,#f59e0b,#ef4444)',
-      delta: '-3%',
-      up: false,
+      delta: '7 jours',
+      up: true,
     },
     {
       label: 'Événements actifs',
       value: eventsLoading ? '—' : String(activeCount),
       icon: Calendar,
       iconBg: 'linear-gradient(135deg,#10b981,#2563EB)',
-      delta: `+${activeCount}`,
+      delta: `${rawEvents.length} total`,
       up: true,
     },
   ]
@@ -277,7 +262,7 @@ export function OrganizerDashboard() {
           </div>
           <div style={{ height: 180 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={CHART_DATA} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+              <AreaChart data={orgStats.chartData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
                 <defs>
                   <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%"  stopColor="#2563EB" stopOpacity={0.25} />
@@ -433,23 +418,41 @@ export function OrganizerDashboard() {
         </div>
 
         <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm divide-y divide-[#F4F4FB]">
-          {MOCK_SALES.map((sale) => (
-            <div key={sale.id} className="flex items-center gap-3 px-4 py-3.5">
-              <div
-                className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
-                style={{ background: sale.avatarGradient }}
-              >
-                {sale.initials}
+          {orgStats.loading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3.5 animate-pulse">
+                <div className="w-9 h-9 rounded-full bg-[#E8E8F0] shrink-0" />
+                <div className="flex-1">
+                  <div className="h-3 w-28 bg-[#E8E8F0] rounded-full mb-1.5" />
+                  <div className="h-2.5 w-20 bg-[#E8E8F0] rounded-full" />
+                </div>
+                <div className="h-3 w-16 bg-[#E8E8F0] rounded-full" />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold truncate">{sale.buyerName}</p>
-                <p className="text-xs text-[#12122A]/50">{sale.ticketType} · {sale.timeAgo}</p>
-              </div>
-              <p className="text-sm font-extrabold text-primary shrink-0 whitespace-nowrap">
-                +{sale.amount.toLocaleString('fr-FR')} F
-              </p>
-            </div>
-          ))}
+            ))
+          ) : orgStats.recentTickets.length === 0 ? (
+            <p className="text-sm text-[#12122A]/40 text-center py-8">Aucune vente pour l'instant</p>
+          ) : (
+            orgStats.recentTickets.map((ticket, idx) => {
+              const shortId = ticket.user_id.slice(0, 2).toUpperCase()
+              return (
+                <div key={ticket.id} className="flex items-center gap-3 px-4 py-3.5">
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
+                    style={{ background: AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length] }}
+                  >
+                    {shortId}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold truncate">Client #{ticket.user_id.slice(0, 8)}</p>
+                    <p className="text-xs text-[#12122A]/50">{ticket.category} · {formatTimeAgo(ticket.created_at)}</p>
+                  </div>
+                  <p className="text-sm font-extrabold text-primary shrink-0 whitespace-nowrap">
+                    +{ticket.total_price.toLocaleString('fr-FR')} F
+                  </p>
+                </div>
+              )
+            })
+          )}
         </div>
       </div>
 

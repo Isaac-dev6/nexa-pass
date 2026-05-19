@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
+// ── Interfaces ────────────────────────────────────────────────────────────────
+
 export interface SupabaseEvent {
   id: string
   title: string
@@ -12,6 +14,7 @@ export interface SupabaseEvent {
   cover_url: string | null
   organizer_id: string | null
   status: string
+  validated: boolean
   created_at: string
 }
 
@@ -24,6 +27,8 @@ export interface SupabaseTicket {
   total_price: number
   status: string
   qr_code: string | null
+  used_at: string | null
+  used_by: string | null
   created_at: string
   events: {
     id: string
@@ -35,7 +40,39 @@ export interface SupabaseTicket {
   } | null
 }
 
-// ── All active events ─────────────────────────────────────────────────────────
+export interface OrgTicketStat {
+  id: string
+  event_id: string
+  category: string
+  total_price: number
+  quantity: number
+  created_at: string
+  user_id: string
+}
+
+export interface OrgStats {
+  ticketCount: number
+  totalSold: number
+  revenue: number
+  recentTickets: OrgTicketStat[]
+  chartData: { day: string; ventes: number }[]
+  perEvent: Record<string, { sold: number; revenue: number }>
+  loading: boolean
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+export function formatTimeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60_000)
+  if (mins < 1) return "À l'instant"
+  if (mins < 60) return `Il y a ${mins} min`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `Il y a ${hrs}h`
+  return `Il y a ${Math.floor(hrs / 24)}j`
+}
+
+// ── All active validated events ───────────────────────────────────────────────
 
 export function useEvents() {
   const [events, setEvents] = useState<SupabaseEvent[]>([])
@@ -48,7 +85,8 @@ export function useEvents() {
       .from('events')
       .select('*')
       .eq('status', 'active')
-      .order('created_at', { ascending: false })
+      .eq('validated', true)
+      .order('date', { ascending: true })
       .then(({ data, error: err }) => {
         if (cancelled) return
         if (err) setError(err.message)
@@ -118,41 +156,6 @@ export function useOrganizerEvents(organizerId: string | undefined) {
 }
 
 // ── Tickets for a user ────────────────────────────────────────────────────────
-/*
- * SQL — run once in Supabase SQL Editor
- *
- * create table if not exists public.tickets (
- *   id          uuid default gen_random_uuid() primary key,
- *   event_id    uuid references public.events(id) on delete cascade,
- *   user_id     uuid references auth.users(id) on delete cascade,
- *   category    text not null,
- *   quantity    int not null default 1,
- *   total_price numeric not null default 0,
- *   status      text not null default 'upcoming',
- *   qr_code     text,
- *   created_at  timestamptz default now()
- * );
- *
- * alter table public.tickets enable row level security;
- *
- * -- Buyer can read / insert / update their own tickets
- * create policy "owner_select" on public.tickets
- *   for select using (auth.uid() = user_id);
- * create policy "owner_insert" on public.tickets
- *   for insert with check (auth.uid() = user_id);
- * create policy "owner_update" on public.tickets
- *   for update using (auth.uid() = user_id);
- *
- * -- Organizer can read tickets for their events
- * create policy "organizer_select" on public.tickets
- *   for select using (
- *     exists (
- *       select 1 from public.events
- *       where events.id = tickets.event_id
- *         and events.organizer_id = auth.uid()
- *     )
- *   );
- */
 
 export function useTickets(userId: string | undefined) {
   const [tickets, setTickets] = useState<SupabaseTicket[]>([])
@@ -177,4 +180,100 @@ export function useTickets(userId: string | undefined) {
   }, [userId])
 
   return { tickets, loading, error }
+}
+
+// ── Organizer stats (real data for dashboard) ─────────────────────────────────
+
+export function useOrganizerStats(organizerId: string | undefined): OrgStats {
+  const [stats, setStats] = useState<OrgStats>({
+    ticketCount: 0,
+    totalSold: 0,
+    revenue: 0,
+    recentTickets: [],
+    chartData: [],
+    perEvent: {},
+    loading: true,
+  })
+
+  useEffect(() => {
+    if (!organizerId) {
+      setStats((s) => ({ ...s, loading: false }))
+      return
+    }
+
+    let cancelled = false
+
+    async function load() {
+      // 1. Get organizer's event IDs
+      const { data: eventsData } = await supabase
+        .from('events')
+        .select('id')
+        .eq('organizer_id', organizerId)
+
+      if (cancelled) return
+
+      const eventIds = (eventsData ?? []).map((e) => e.id as string)
+
+      if (eventIds.length === 0) {
+        setStats({ ticketCount: 0, totalSold: 0, revenue: 0, recentTickets: [], chartData: buildEmptyChart(), perEvent: {}, loading: false })
+        return
+      }
+
+      // 2. Fetch all tickets for those events
+      const { data: ticketsData } = await supabase
+        .from('tickets')
+        .select('id, event_id, category, total_price, quantity, created_at, user_id')
+        .in('event_id', eventIds)
+        .order('created_at', { ascending: false })
+
+      if (cancelled) return
+
+      const rows = (ticketsData ?? []) as OrgTicketStat[]
+
+      // 3. Aggregate
+      const revenue = rows.reduce((s, t) => s + t.total_price, 0)
+      const totalSold = rows.reduce((s, t) => s + t.quantity, 0)
+
+      // 4. Per-event breakdown
+      const perEvent: Record<string, { sold: number; revenue: number }> = {}
+      for (const t of rows) {
+        if (!perEvent[t.event_id]) perEvent[t.event_id] = { sold: 0, revenue: 0 }
+        perEvent[t.event_id].sold += t.quantity
+        perEvent[t.event_id].revenue += t.total_price
+      }
+
+      // 5. Chart: last 7 days
+      const now = new Date()
+      const chartData = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(now)
+        d.setDate(d.getDate() - (6 - i))
+        d.setHours(0, 0, 0, 0)
+        const nextD = new Date(d)
+        nextD.setDate(nextD.getDate() + 1)
+        const dayVentes = rows
+          .filter((t) => { const c = new Date(t.created_at); return c >= d && c < nextD })
+          .reduce((s, t) => s + t.total_price, 0)
+        return {
+          day: d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+          ventes: dayVentes,
+        }
+      })
+
+      setStats({ ticketCount: rows.length, totalSold, revenue, recentTickets: rows.slice(0, 5), chartData, perEvent, loading: false })
+    }
+
+    load().catch(console.error)
+    return () => { cancelled = true }
+  }, [organizerId])
+
+  return stats
+}
+
+function buildEmptyChart(): { day: string; ventes: number }[] {
+  const now = new Date()
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(now)
+    d.setDate(d.getDate() - (6 - i))
+    return { day: d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }), ventes: 0 }
+  })
 }

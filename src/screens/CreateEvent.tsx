@@ -352,6 +352,10 @@ export function CreateEvent() {
         return
       }
 
+      // Unlock organizer role on first publish
+      await supabase.from('profiles').upsert({ id: user!.id, role: 'organizer' }, { onConflict: 'id' })
+      await supabase.auth.updateUser({ data: { role: 'organizer' } })
+
       localStorage.removeItem(DRAFT_KEY)
       showToast('Événement publié avec succès ! 🎉')
       navigate('/organizer')
