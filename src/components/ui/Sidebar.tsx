@@ -24,16 +24,16 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user } = useAuth()
+  const { user, userRole, profileName } = useAuth()
   const { showToast } = useToast()
   const wip = () => showToast('🚧 Cette section est en cours de construction')
 
   const { isOrganizer: hasEvents } = useIsOrganizer(user?.id)
-  const { userRole } = useAuth()
   const isOrganizer = hasEvents || userRole === 'organizer' || userRole === 'admin'
   const { isDark, toggleTheme } = useTheme()
 
   const fullName: string =
+    profileName ||
     user?.user_metadata?.full_name ||
     user?.user_metadata?.name ||
     user?.email?.split('@')[0] ||

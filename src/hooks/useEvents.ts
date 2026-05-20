@@ -94,8 +94,13 @@ export function useEvents() {
       .order('date', { ascending: true })
       .then(({ data, error: err }) => {
         if (cancelled) return
-        if (err) setError(err.message)
-        else setEvents(data ?? [])
+        if (err) {
+          console.error('[useEvents] Supabase error:', err.message, err)
+          setError(err.message)
+        } else {
+          console.log('[useEvents] events loaded:', data?.length ?? 0)
+          setEvents(data ?? [])
+        }
         setLoading(false)
       })
     return () => { cancelled = true }

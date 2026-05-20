@@ -58,9 +58,9 @@ function EventCardSkeleton() {
 
 export function Home() {
   const { showToast } = useToast()
-  const { user } = useAuth()
+  const { user, profileName } = useAuth()
   const { isDark } = useTheme()
-  const { events, loading } = useEvents()
+  const { events, loading, error: eventsError } = useEvents()
   const wip = () => showToast('🚧 Cette section est en cours de construction')
 
   const [activeCategory, setActiveCategory] = useState('Tous')
@@ -69,12 +69,14 @@ export function Home() {
   const searchRef = useRef<HTMLInputElement>(null)
 
   const fullName: string =
+    profileName ||
     user?.user_metadata?.full_name ||
     user?.user_metadata?.name ||
     user?.email?.split('@')[0] ||
     'Utilisateur'
   const initials = getInitials(fullName)
-  const firstName = fullName.split(' ')[0]
+
+  if (eventsError) console.error('[Home] useEvents error:', eventsError)
 
   // First HERO_COUNT events populate the carousel; the rest appear in the list
   const heroEvents = events.slice(0, HERO_COUNT)
@@ -103,7 +105,7 @@ export function Home() {
       <header className="flex justify-between items-center px-5 pt-12 md:pt-8 pb-4">
         <div>
           <p className="text-sm text-[#12122A]/70">Bonjour 👋</p>
-          <h1 className="text-2xl font-bold">{firstName}</h1>
+          <h1 className="text-2xl font-bold">{fullName}</h1>
         </div>
         <button onClick={wip}>
           <div
