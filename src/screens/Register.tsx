@@ -5,26 +5,50 @@ import type { AuthError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { useToast } from '../contexts/ToastContext'
 import { PhoneInput } from '../components/ui/PhoneInput'
+import { sanitizeText, validateEmail, validatePassword, passwordStrength } from '../lib/security'
+import { logSecurityEvent } from '../lib/securityLogger'
 
 function getErrorMessage(error: AuthError): string {
   const msg = error.message
-  if (msg.includes('User already registered') || msg.includes('already registered')) {
+  if (msg.includes('User already registered') || msg.includes('already registered'))
     return 'Un compte existe déjà avec cette adresse email'
-  }
-  if (msg.includes('Password should be at least') || msg.includes('password')) {
-    return 'Le mot de passe doit contenir au moins 6 caractères'
-  }
-  if (msg.includes('Unable to validate email') || msg.includes('Invalid email')) {
+  if (msg.includes('Password should be at least') || msg.includes('password'))
+    return 'Le mot de passe ne respecte pas les critères requis'
+  if (msg.includes('Unable to validate email') || msg.includes('Invalid email'))
     return 'Adresse email invalide'
-  }
-  if (msg.includes('rate limit') || msg.includes('Email rate limit')) {
+  if (msg.includes('rate limit') || msg.includes('Email rate limit'))
     return 'Trop de tentatives. Réessaie dans quelques minutes'
-  }
-  return `Erreur Supabase : ${error.message}`
+  return `Erreur : ${error.message}`
 }
 
 const inputClass =
   'w-full px-4 py-3 rounded-xl border border-[#E5E7EB] bg-white text-[#12122A] text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all placeholder:text-[#12122A]/40'
+
+const STRENGTH_CONFIG = [
+  { label: 'Faible',  color: '#EF4444' },
+  { label: 'Moyen',  color: '#F59E0B' },
+  { label: 'Fort',   color: '#10B981' },
+]
+
+function PasswordStrengthBar({ password }: { password: string }) {
+  if (!password) return null
+  const score = passwordStrength(password) // 0–3
+  const cfg = STRENGTH_CONFIG[score - 1]
+  return (
+    <div className="mt-1.5">
+      <div className="flex gap-1 mb-1">
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="h-1 flex-1 rounded-full transition-all duration-300"
+            style={{ background: i <= score ? cfg?.color ?? '#E5E7EB' : '#E5E7EB' }}
+          />
+        ))}
+      </div>
+      {cfg && <p className="text-[11px] font-semibold" style={{ color: cfg.color }}>{cfg.label}</p>}
+    </div>
+  )
+}
 
 export function Register() {
   const navigate = useNavigate()
@@ -41,12 +65,7 @@ export function Register() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [form, setForm] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    password: '',
-  })
+  const [form, setForm] = useState({ fullName: '', email: '', phone: '', password: '' })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null)
@@ -57,23 +76,27 @@ export function Register() {
     e.preventDefault()
     setError(null)
 
-    if (form.fullName.trim().length < 2) {
-      setError('Saisis ton prénom et ton nom')
-      return
-    }
-    if (form.password.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères')
-      return
-    }
+    // Validate name
+    const name = form.fullName.trim()
+    if (name.length < 2) { setError('Saisis ton prénom et ton nom (min. 2 caractères)'); return }
+    if (name.length > 80) { setError('Le nom est trop long (max 80 caractères)'); return }
+
+    // Validate email
+    const emailErr = validateEmail(form.email)
+    if (emailErr) { setError(emailErr); return }
+
+    // Validate password
+    const pwErr = validatePassword(form.password)
+    if (pwErr) { setError(pwErr); return }
 
     setLoading(true)
     try {
       const { data, error: authError } = await supabase.auth.signUp({
-        email: form.email,
+        email: form.email.trim(),
         password: form.password,
         options: {
           data: {
-            full_name: form.fullName.trim(),
+            full_name: sanitizeText(name),
             phone: form.phone,
           },
         },
@@ -83,6 +106,8 @@ export function Register() {
         setError(getErrorMessage(authError))
         return
       }
+
+      await logSecurityEvent('register_success', data.user?.id, { email: form.email.trim() })
 
       if (data.session) {
         showToast('✅ Compte créé avec succès !')
@@ -105,23 +130,17 @@ export function Register() {
     >
       <div className="w-full max-w-[400px] bg-white rounded-2xl px-8 py-10 shadow-[0_4px_30px_rgba(0,0,0,0.08)]">
 
-        {/* Logo */}
         <div className="flex justify-center mb-6">
           <img src="/logo.png" alt="Nexa Pass" style={{ width: '64px', height: '64px', objectFit: 'contain' }} />
         </div>
 
-        {/* Title */}
-        <h1
-          className="text-center font-bold text-[#12122A] mb-1"
-          style={{ fontSize: '22px', letterSpacing: '-0.3px' }}
-        >
+        <h1 className="text-center font-bold text-[#12122A] mb-1" style={{ fontSize: '22px', letterSpacing: '-0.3px' }}>
           Créer ton compte
         </h1>
         <p className="text-center text-sm text-[#12122A]/50 mb-7 font-medium">
           Rejoins Nexa Pass et réserve tes événements
         </p>
 
-        {/* Social buttons */}
         <div className="flex flex-col gap-3 mb-5">
           <button
             type="button"
@@ -136,7 +155,6 @@ export function Register() {
             </svg>
             Continuer avec Google
           </button>
-
           <button
             type="button"
             onClick={wip}
@@ -149,14 +167,12 @@ export function Register() {
           </button>
         </div>
 
-        {/* Divider */}
         <div className="flex items-center gap-3 mb-5">
           <div className="flex-1 h-px bg-[#E5E7EB]" />
           <span className="text-xs text-[#12122A]/40 font-medium">ou</span>
           <div className="flex-1 h-px bg-[#E5E7EB]" />
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input
             type="text"
@@ -165,6 +181,7 @@ export function Register() {
             onChange={handleChange}
             placeholder="Nom complet"
             autoComplete="name"
+            maxLength={80}
             className={inputClass}
           />
 
@@ -180,32 +197,34 @@ export function Register() {
 
           <PhoneInput
             value={form.phone}
-            onChange={(fullNumber) => {
-              setError(null)
-              setForm((p) => ({ ...p, phone: fullNumber }))
-            }}
+            onChange={(fullNumber) => { setError(null); setForm((p) => ({ ...p, phone: fullNumber })) }}
           />
 
-          <div className="relative">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              placeholder="Mot de passe"
-              autoComplete="new-password"
-              className={`${inputClass} pr-11`}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#12122A]/40 hover:text-[#12122A]/70 transition-colors"
-            >
-              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
+          <div>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                placeholder="Mot de passe"
+                autoComplete="new-password"
+                className={`${inputClass} pr-11`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#12122A]/40 hover:text-[#12122A]/70 transition-colors"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            <PasswordStrengthBar password={form.password} />
+            <p className="text-[11px] text-[#12122A]/40 mt-1">
+              8 caractères minimum · 1 majuscule · 1 chiffre
+            </p>
           </div>
 
-          {/* Inline error */}
           {error && (
             <p className="text-xs text-red-500 font-medium px-1 -mt-1">{error}</p>
           )}
@@ -216,30 +235,22 @@ export function Register() {
             className="w-full py-3.5 rounded-xl text-white text-sm font-bold mt-1 transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60 flex items-center justify-center gap-2"
             style={{ background: 'linear-gradient(135deg, #2563EB, #9333EA)' }}
           >
-            {loading && (
-              <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-            )}
+            {loading && <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />}
             {loading ? 'Création en cours…' : 'Créer mon compte'}
           </button>
         </form>
 
         <p className="text-center text-sm text-[#12122A]/50 mt-5">
           Déjà un compte ?{' '}
-          <Link to="/login" className="font-semibold text-[#2563EB] hover:underline">
-            Se connecter
-          </Link>
+          <Link to="/login" className="font-semibold text-[#2563EB] hover:underline">Se connecter</Link>
         </p>
       </div>
 
       <p className="text-center text-xs text-[#12122A]/35 mt-6 max-w-[320px] leading-relaxed">
         En créant un compte, tu acceptes nos{' '}
-        <button onClick={wip} className="underline hover:text-[#12122A]/60 transition-colors">
-          Conditions d'utilisation
-        </button>{' '}
-        et notre{' '}
-        <button onClick={wip} className="underline hover:text-[#12122A]/60 transition-colors">
-          Politique de confidentialité
-        </button>.
+        <button onClick={wip} className="underline hover:text-[#12122A]/60 transition-colors">Conditions d'utilisation</button>
+        {' '}et notre{' '}
+        <button onClick={wip} className="underline hover:text-[#12122A]/60 transition-colors">Politique de confidentialité</button>.
       </p>
     </div>
   )

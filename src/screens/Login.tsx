@@ -1,24 +1,23 @@
-import { useState } from 'react'
-import { Eye, EyeOff, X, ArrowLeft } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Eye, EyeOff, X, ArrowLeft, ShieldAlert } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { AuthError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { useToast } from '../contexts/ToastContext'
+import { validateEmail } from '../lib/security'
+import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '../lib/rateLimiter'
+import { logSecurityEvent } from '../lib/securityLogger'
 
 function getErrorMessage(error: AuthError): string {
   const msg = error.message
-  if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
+  if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials'))
     return 'Email ou mot de passe incorrect'
-  }
-  if (msg.includes('Email not confirmed')) {
-    return 'Vérifie ton email pour confirmer ton compte avant de te connecter'
-  }
-  if (msg.includes('User not found')) {
+  if (msg.includes('Email not confirmed'))
+    return 'Vérifie ton email pour confirmer ton compte'
+  if (msg.includes('User not found'))
     return 'Aucun compte trouvé avec cet email'
-  }
-  if (msg.includes('rate limit') || msg.includes('too many')) {
+  if (msg.includes('rate limit') || msg.includes('too many'))
     return 'Trop de tentatives. Réessaie dans quelques minutes'
-  }
   return 'Une erreur est survenue. Réessaie plus tard'
 }
 
@@ -43,7 +42,6 @@ export function Login() {
   const wip = () => showToast('🚧 Cette section est en cours de construction')
 
   const handleGoogleSignIn = async () => {
-    // Ensure redirectTo is in Supabase Auth → URL Configuration → Redirect URLs
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: 'https://nexa-pass-dvbs.vercel.app/auth/callback' },
@@ -56,29 +54,68 @@ export function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [rateLimitStatus, setRateLimitStatus] = useState(() => checkRateLimit(''))
+
+  // Update rate limit status when identifier changes
+  useEffect(() => {
+    if (identifier.trim()) {
+      setRateLimitStatus(checkRateLimit(identifier.trim().toLowerCase()))
+    }
+  }, [identifier])
+
+  // Countdown refresh every 30s while blocked
+  useEffect(() => {
+    if (!rateLimitStatus.blocked) return
+    const id = setInterval(() => {
+      setRateLimitStatus(checkRateLimit(identifier.trim().toLowerCase()))
+    }, 30_000)
+    return () => clearInterval(id)
+  }, [rateLimitStatus.blocked, identifier])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    // Step 1 → Step 2: just advance, no API call
+    // Step 1: validate email format
     if (step === 'identifier') {
-      if (!identifier.trim()) return
+      const emailError = validateEmail(identifier)
+      if (emailError) { setError(emailError); return }
       setStep('password')
       return
     }
 
-    // Step 2: authenticate
+    // Step 2: check rate limit before hitting Supabase
+    const rlKey = identifier.trim().toLowerCase()
+    const status = checkRateLimit(rlKey)
+    if (status.blocked) {
+      await logSecurityEvent('login_blocked', null, { email: rlKey })
+      setRateLimitStatus(status)
+      return
+    }
+
     setLoading(true)
     try {
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: identifier.trim(),
         password,
       })
 
       if (authError) {
-        setError(getErrorMessage(authError))
+        const newStatus = recordFailedAttempt(rlKey)
+        setRateLimitStatus(newStatus)
+        await logSecurityEvent('login_failed', null, {
+          email: rlKey,
+          reason: authError.message,
+          attemptsLeft: newStatus.attemptsLeft,
+        })
+        setError(
+          newStatus.blocked
+            ? `Compte temporairement bloqué. Réessayez dans ${newStatus.minutesLeft} min`
+            : getErrorMessage(authError)
+        )
       } else {
+        resetRateLimit(rlKey)
+        await logSecurityEvent('login_success', data.user?.id, { email: rlKey })
         navigate('/home')
       }
     } catch {
@@ -88,11 +125,9 @@ export function Login() {
     }
   }
 
-  const goBack = () => {
-    setStep('identifier')
-    setPassword('')
-    setError(null)
-  }
+  const goBack = () => { setStep('identifier'); setPassword(''); setError(null) }
+
+  const isBlocked = rateLimitStatus.blocked
 
   return (
     <div
@@ -101,36 +136,42 @@ export function Login() {
     >
       <div className="w-full max-w-[400px] bg-white rounded-2xl px-8 py-10 shadow-[0_4px_30px_rgba(0,0,0,0.08)]">
 
-        {/* Logo */}
         <div className="flex justify-center mb-7">
           <img src="/logo.png" alt="Nexa Pass" style={{ width: '64px', height: '64px', objectFit: 'contain' }} />
         </div>
 
-        {/* Title */}
-        <h1
-          className="text-center font-bold text-[#12122A] mb-2"
-          style={{ fontSize: '22px', letterSpacing: '-0.3px' }}
-        >
+        <h1 className="text-center font-bold text-[#12122A] mb-2" style={{ fontSize: '22px', letterSpacing: '-0.3px' }}>
           Bon retour 👋
         </h1>
         <p className="text-center text-sm text-[#12122A]/50 mb-8 font-medium">
           Connecte-toi pour accéder à tes billets
         </p>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3 mb-5">
+        {/* Rate limit banner */}
+        {isBlocked && (
+          <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-5">
+            <ShieldAlert size={16} className="text-red-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-bold text-red-600">Trop de tentatives échouées</p>
+              <p className="text-xs text-red-500 mt-0.5">
+                Réessayez dans <strong>{rateLimitStatus.minutesLeft} minute{rateLimitStatus.minutesLeft > 1 ? 's' : ''}</strong>
+              </p>
+            </div>
+          </div>
+        )}
 
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3 mb-5">
           {step === 'identifier' ? (
-            /* ── Step 1: email/phone ── */
             <div className="relative">
               <input
                 type="text"
                 value={identifier}
                 onChange={(e) => { setIdentifier(e.target.value); setError(null) }}
-                placeholder="Email ou téléphone"
+                placeholder="Email"
                 autoComplete="username"
                 autoFocus
-                className="w-full px-4 py-3.5 pr-11 rounded-xl border border-[#E5E7EB] bg-white text-[#12122A] text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all placeholder:text-[#12122A]/40 font-medium"
+                disabled={isBlocked}
+                className="w-full px-4 py-3.5 pr-11 rounded-xl border border-[#E5E7EB] bg-white text-[#12122A] text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all placeholder:text-[#12122A]/40 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               />
               {identifier.length > 0 && (
                 <button
@@ -143,9 +184,7 @@ export function Login() {
               )}
             </div>
           ) : (
-            /* ── Step 2: locked email + password ── */
             <>
-              {/* Email locked row */}
               <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-[#F4F4FB] border border-[#E5E7EB]">
                 <span className="text-sm text-[#12122A] font-medium truncate">{identifier}</span>
                 <button
@@ -158,7 +197,6 @@ export function Login() {
                 </button>
               </div>
 
-              {/* Password */}
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -167,7 +205,8 @@ export function Login() {
                   placeholder="Mot de passe"
                   autoComplete="current-password"
                   autoFocus
-                  className="w-full px-4 py-3.5 pr-11 rounded-xl border border-[#E5E7EB] bg-white text-[#12122A] text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all placeholder:text-[#12122A]/40 font-medium"
+                  disabled={isBlocked}
+                  className="w-full px-4 py-3.5 pr-11 rounded-xl border border-[#E5E7EB] bg-white text-[#12122A] text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all placeholder:text-[#12122A]/40 font-medium disabled:opacity-50"
                 />
                 <button
                   type="button"
@@ -177,6 +216,13 @@ export function Login() {
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+
+              {/* Attempts left warning */}
+              {!isBlocked && rateLimitStatus.attemptsLeft <= 2 && rateLimitStatus.attemptsLeft > 0 && (
+                <p className="text-xs text-amber-600 font-medium px-1">
+                  Attention : {rateLimitStatus.attemptsLeft} tentative{rateLimitStatus.attemptsLeft > 1 ? 's' : ''} restante{rateLimitStatus.attemptsLeft > 1 ? 's' : ''}
+                </p>
+              )}
 
               <div className="flex justify-end -mt-1">
                 <button
@@ -190,33 +236,27 @@ export function Login() {
             </>
           )}
 
-          {/* Inline error */}
-          {error && (
+          {error && !isBlocked && (
             <p className="text-xs text-red-500 font-medium px-1 -mt-1">{error}</p>
           )}
 
-          {/* CTA */}
           <button
             type="submit"
-            disabled={loading}
-            className="w-full py-3.5 rounded-xl text-white text-sm font-bold transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60 flex items-center justify-center gap-2"
+            disabled={loading || isBlocked}
+            className="w-full py-3.5 rounded-xl text-white text-sm font-bold transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             style={{ background: 'linear-gradient(135deg, #2563EB, #9333EA)' }}
           >
-            {loading && (
-              <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-            )}
+            {loading && <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />}
             {loading ? 'Connexion…' : step === 'identifier' ? 'Continuer' : 'Se connecter'}
           </button>
         </form>
 
-        {/* Divider */}
         <div className="flex items-center gap-3 mb-5">
           <div className="flex-1 h-px bg-[#E5E7EB]" />
           <span className="text-xs text-[#12122A]/40 font-medium px-1">ou</span>
           <div className="flex-1 h-px bg-[#E5E7EB]" />
         </div>
 
-        {/* Social buttons */}
         <div className="flex flex-col gap-3">
           <button
             type="button"
@@ -226,7 +266,6 @@ export function Login() {
             <GoogleLogo />
             Continuer avec Google
           </button>
-
           <button
             type="button"
             onClick={wip}
@@ -237,7 +276,6 @@ export function Login() {
           </button>
         </div>
 
-        {/* Sign up link */}
         <p className="text-center text-sm text-[#12122A]/50 mt-7">
           Pas encore de compte ?{' '}
           <Link to="/register" className="font-semibold text-[#9333EA] hover:opacity-80 transition-opacity">
@@ -246,16 +284,11 @@ export function Login() {
         </p>
       </div>
 
-      {/* Footer */}
       <p className="text-center text-xs text-[#12122A]/35 mt-6 max-w-[320px] leading-relaxed">
         En continuant, tu acceptes nos{' '}
-        <button onClick={wip} className="underline hover:text-[#12122A]/60 transition-colors">
-          Conditions d'utilisation
-        </button>{' '}
-        et notre{' '}
-        <button onClick={wip} className="underline hover:text-[#12122A]/60 transition-colors">
-          Politique de confidentialité
-        </button>.
+        <button onClick={wip} className="underline hover:text-[#12122A]/60 transition-colors">Conditions d'utilisation</button>
+        {' '}et notre{' '}
+        <button onClick={wip} className="underline hover:text-[#12122A]/60 transition-colors">Politique de confidentialité</button>.
       </p>
     </div>
   )

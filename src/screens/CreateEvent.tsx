@@ -32,6 +32,8 @@ import { useToast } from '../contexts/ToastContext'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { BottomNav } from '../components/ui/BottomNav'
+import { sanitizeText } from '../lib/security'
+import { logSecurityEvent } from '../lib/securityLogger'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -221,12 +223,21 @@ export function CreateEvent() {
     const errs: Record<string, string> = {}
 
     if (step === 0) {
-      if (!form.title.trim())  errs.title    = 'Le titre est requis'
-      if (!form.category)      errs.category = 'Sélectionne une catégorie'
+      const title = form.title.trim()
+      if (!title)            errs.title    = 'Le titre est requis'
+      else if (title.length > 100) errs.title = 'Titre trop long (max 100 caractères)'
+      if (!form.category)    errs.category = 'Sélectionne une catégorie'
+      if (form.description && form.description.length > 2000)
+        errs.description = 'Description trop longue (max 2000 caractères)'
     }
 
     if (step === 1) {
-      if (!form.date)           errs.date      = 'La date est requise'
+      if (!form.date) {
+        errs.date = 'La date est requise'
+      } else {
+        const eventDate = new Date(`${form.date}T${form.startTime || '00:00'}`)
+        if (eventDate <= new Date()) errs.date = "La date doit être dans le futur"
+      }
       if (!form.startTime)      errs.startTime = "L'heure de début est requise"
       if (!form.venue.trim())   errs.venue     = 'Le nom du lieu est requis'
       if (!form.city)           errs.city      = 'La ville est requise'
@@ -235,8 +246,10 @@ export function CreateEvent() {
     if (step === 2) {
       form.tickets.forEach((t, i) => {
         if (!t.name.trim())                     errs[`t${i}_name`]  = 'Nom requis'
-        if (!t.price || isNaN(Number(t.price))) errs[`t${i}_price`] = 'Prix requis'
-        if (!t.quantity || isNaN(Number(t.quantity))) errs[`t${i}_qty`] = 'Quantité requise'
+        const price = Number(t.price)
+        if (!t.price || isNaN(price) || price < 0) errs[`t${i}_price`] = 'Prix invalide (nombre positif requis)'
+        const qty = Number(t.quantity)
+        if (!t.quantity || isNaN(qty) || qty <= 0 || !Number.isInteger(qty)) errs[`t${i}_qty`] = 'Quantité invalide (entier positif requis)'
       })
     }
 
@@ -336,15 +349,15 @@ export function CreateEvent() {
         : null
 
       const { error } = await supabase.from('events').insert({
-        title: form.title,
-        description: form.description || null,
+        title: sanitizeText(form.title),
+        description: form.description ? sanitizeText(form.description) : null,
         category: form.category,
         date: dateIso,
-        location: form.venue,
+        location: sanitizeText(form.venue),
         city: form.city,
         cover_url: form.imageUrl || null,
         organizer_id: user?.id,
-        status: 'active',
+        status: 'pending_validation',
       })
 
       if (error) {
@@ -355,9 +368,10 @@ export function CreateEvent() {
       // Unlock organizer role on first publish
       await supabase.from('profiles').upsert({ id: user!.id, role: 'organizer' }, { onConflict: 'id' })
       await supabase.auth.updateUser({ data: { role: 'organizer' } })
+      await logSecurityEvent('event_created', user!.id, { title: form.title, category: form.category })
 
       localStorage.removeItem(DRAFT_KEY)
-      showToast('Événement publié avec succès ! 🎉')
+      showToast('Événement soumis — en attente de validation 🎉')
       navigate('/organizer')
     } finally {
       setIsPublishing(false)
