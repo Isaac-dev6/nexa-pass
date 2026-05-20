@@ -17,6 +17,7 @@ import { TicketView } from './screens/TicketView'
 import { QRScanner } from './screens/QRScanner'
 import { Landing } from './screens/Landing'
 import { EditEvent } from './screens/EditEvent'
+import { AuthCallback } from './screens/AuthCallback'
 import { ThemeProvider } from './contexts/ThemeContext'
 
 function PrivateRoute({ children }: { children: ReactNode }) {
@@ -58,6 +59,7 @@ function App() {
             <Route path="/ticket/:id" element={<PrivateRoute><AppShell><TicketView /></AppShell></PrivateRoute>} />
             <Route path="/scanner" element={<PrivateRoute><QRScanner /></PrivateRoute>} />
             <Route path="/event/edit/:id" element={<PrivateRoute><AppShell><EditEvent /></AppShell></PrivateRoute>} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
           </Routes>
