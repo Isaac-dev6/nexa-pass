@@ -54,11 +54,11 @@ function Modal({
         className="relative z-10 w-full max-w-[430px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl max-h-[90vh] flex flex-col"
         style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
       >
-        <div className={`flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#F4F4FB] shrink-0 ${danger ? 'border-red-50' : ''}`}>
+        <div className={`flex items-center justify-between px-5 pt-5 pb-4 border-b shrink-0 ${danger ? 'border-red-50' : 'border-[#E5E7EB]'}`}>
           <h3 className={`text-base font-extrabold ${danger ? 'text-red-500' : 'text-[#12122A]'}`}>{title}</h3>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-[#F4F4FB] flex items-center justify-center text-[#12122A]/50 hover:text-[#12122A] transition-colors"
+            className="w-8 h-8 rounded-full bg-[#E8E8F0] flex items-center justify-center text-[#12122A]/50 hover:text-[#12122A] transition-colors"
           >
             <X size={15} />
           </button>
@@ -84,7 +84,7 @@ function InputField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full bg-[#F4F4FB] border border-[#E5E7EB] rounded-xl px-4 py-3 text-sm text-[#12122A] outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all placeholder-[#12122A]/35 pr-10"
+          className="w-full bg-[#E8E8F0] border border-[#E5E7EB] rounded-xl px-4 py-3 text-sm text-[#12122A] outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all placeholder-[#12122A]/35 pr-10"
         />
         {rightEl && <div className="absolute right-3 top-1/2 -translate-y-1/2">{rightEl}</div>}
       </div>
@@ -138,7 +138,7 @@ function EditProfileModal({
                 key={c}
                 onClick={() => setCity(c)}
                 className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                  city === c ? 'bg-primary text-white shadow-sm' : 'bg-[#F4F4FB] border border-[#E5E7EB] text-[#12122A]/70 hover:border-primary/30'
+                  city === c ? 'bg-primary text-white shadow-sm' : 'bg-[#E8E8F0] border border-[#E5E7EB] text-[#12122A]/70 hover:border-primary/30'
                 }`}
               >
                 {c}
@@ -270,7 +270,7 @@ function PreferencesModal({ userId, initial, onClose, onSuccess }: {
                 key={cat}
                 onClick={() => toggle(cat)}
                 className={`px-4 py-2.5 rounded-full text-sm font-semibold transition-all ${
-                  active ? 'bg-gradient-to-r from-primary to-accent text-white shadow-sm' : 'bg-[#F4F4FB] border border-[#E5E7EB] text-[#12122A]/70 hover:border-primary/30'
+                  active ? 'bg-gradient-to-r from-primary to-accent text-white shadow-sm' : 'bg-[#E8E8F0] border border-[#E5E7EB] text-[#12122A]/70 hover:border-primary/30'
                 }`}
               >
                 {cat}
@@ -337,7 +337,7 @@ function DeleteAccountModal({ onClose }: { onClose: () => void }) {
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
             placeholder="SUPPRIMER"
-            className="w-full bg-[#F4F4FB] border border-[#E5E7EB] rounded-xl px-4 py-3 text-sm text-[#12122A] outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-all placeholder-[#12122A]/35 tracking-widest"
+            className="w-full bg-[#E8E8F0] border border-[#E5E7EB] rounded-xl px-4 py-3 text-sm text-[#12122A] outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-all placeholder-[#12122A]/35 tracking-widest"
           />
         </div>
       </div>
@@ -374,9 +374,9 @@ function SettingItem({ icon: Icon, label, description, onClick, danger, badge, t
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors ${
         !toggle && onClick ? 'hover:bg-[#F9F9FC] active:bg-[#F4F4FB]' : ''
-      } ${isLast ? '' : 'border-b border-[#F4F4FB]'}`}
+      } ${isLast ? '' : 'border-b border-[#E5E7EB]'}`}
     >
-      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${danger ? 'bg-red-50' : 'bg-[#F4F4FB]'}`}>
+      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${danger ? 'bg-red-50' : 'bg-[#E8E8F0]'}`}>
         <Icon size={16} className={danger ? 'text-red-500' : 'text-[#12122A]/55'} />
       </div>
       <div className="flex-1 min-w-0">
@@ -393,8 +393,8 @@ function SettingItem({ icon: Icon, label, description, onClick, danger, badge, t
 function SettingsSection({ title, items }: { title: string; items: SettingItemConfig[] }) {
   return (
     <div>
-      <p className="text-[11px] font-bold text-[#12122A]/40 uppercase tracking-widest px-5 mb-2">{title}</p>
-      <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+      <p className="text-[11px] font-bold uppercase tracking-widest px-5 mb-2" style={{ color: 'var(--text2)' }}>{title}</p>
+      <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         {items.map((item, idx) => (
           <SettingItem key={idx} {...item} isLast={idx === items.length - 1} />
         ))}
@@ -417,7 +417,11 @@ export function Profile() {
   const ticketCount = tickets.length
   const attendedCount = tickets.filter((t) => t.events?.date && new Date(t.events.date) < new Date()).length
 
-  const fullName: string = user?.user_metadata?.full_name ?? 'Utilisateur'
+  const fullName: string =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.email?.split('@')[0] ||
+    'Utilisateur'
   const initials = getInitials(fullName)
   const email: string = user?.email ?? ''
   const phone: string = user?.user_metadata?.phone ?? ''
@@ -500,8 +504,8 @@ export function Profile() {
 
   return (
     <div
-      className="bg-[#F4F4FB] text-[#12122A] min-h-screen pb-28 md:pb-12"
-      style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+      className="text-[#12122A] min-h-screen pb-28 md:pb-12"
+      style={{ background: 'var(--bg)', fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
     >
       {/* Header */}
       <div className="px-5 pt-12 md:pt-8 pb-6">
@@ -548,18 +552,18 @@ export function Profile() {
       </div>
 
       {/* Stats */}
-      <div className="mx-5 mb-6 bg-white rounded-2xl border border-[#E5E7EB] shadow-sm px-4 py-5">
+      <div className="mx-5 mb-6 rounded-2xl border shadow-sm px-4 py-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <div className="flex items-center">
           <div className="flex-1 flex flex-col items-center">
             <p className="text-2xl font-extrabold text-[#12122A]">{attendedCount}</p>
             <p className="text-[11px] text-[#12122A]/45 text-center leading-tight mt-0.5 font-medium">Événements<br />assistés</p>
           </div>
-          <div className="w-px h-12 bg-[#E5E7EB]" />
+          <div className="w-px h-12" style={{ background: 'var(--border)' }} />
           <div className="flex-1 flex flex-col items-center">
             <p className="text-2xl font-extrabold text-[#12122A]">{ticketCount}</p>
             <p className="text-[11px] text-[#12122A]/45 text-center leading-tight mt-0.5 font-medium">Billets<br />achetés</p>
           </div>
-          <div className="w-px h-12 bg-[#E5E7EB]" />
+          <div className="w-px h-12" style={{ background: 'var(--border)' }} />
           <div className="flex-1 flex flex-col items-center">
             <p className="text-base font-extrabold text-[#12122A] leading-tight">{memberSince}</p>
             <p className="text-[11px] text-[#12122A]/45 text-center leading-tight mt-0.5 font-medium">Membre<br />depuis</p>

@@ -280,8 +280,8 @@ export function Orders() {
 
   return (
     <div
-      className="bg-[#F4F4FB] text-[#12122A] min-h-screen pb-24 md:pb-10"
-      style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+      className="text-[#12122A] min-h-screen pb-24 md:pb-10"
+      style={{ background: 'var(--bg)', fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
     >
       {/* ── Header ── */}
       <header className="relative flex items-center px-5 pt-12 md:pt-8 pb-4">
@@ -297,16 +297,15 @@ export function Orders() {
 
       {/* ── Segmented control ── */}
       <div className="px-5 mb-5">
-        <div className="bg-[#E8E8F0] rounded-xl p-1 flex">
+        <div className="rounded-xl p-1 flex" style={{ background: 'var(--bg2)' }}>
           {(['tickets', 'contributions'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setMainTab(tab)}
               className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
-                mainTab === tab
-                  ? 'bg-white text-primary shadow-sm'
-                  : 'text-[#12122A]/50'
+                mainTab === tab ? 'text-primary shadow-sm' : 'text-[#12122A]/50'
               }`}
+              style={mainTab === tab ? { background: 'var(--pill-active)' } : undefined}
             >
               {tab === 'tickets' ? 'Mes tickets' : 'Mes contributions'}
             </button>

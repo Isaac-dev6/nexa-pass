@@ -80,6 +80,31 @@ html, body {
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
+/* ── Design tokens ───────────────────────────────────────────────────────────
+   Use var(--bg), var(--surface), var(--border), var(--text), var(--text2),
+   var(--bg2) in inline styles for automatic light/dark switching.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --bg:          #F4F4FB;
+  --bg2:         #E8E8F0;
+  --surface:     #FFFFFF;
+  --border:      #E5E7EB;
+  --text:        #12122A;
+  --text2:       rgba(18,18,42,0.5);
+  --pill-active: #FFFFFF;
+}
+
+html.dark {
+  --bg:          #0F172A;
+  --bg2:         #1E1E30;
+  --surface:     #1E293B;
+  --border:      rgba(255,255,255,0.1);
+  --text:        #F0F0FF;
+  --text2:       #9494B8;
+  --pill-active: #1E1E30;
+}
+
 /* ── Dark mode overrides ─────────────────────────────────────────────────────
    These override the hardcoded Tailwind light-mode classes when .dark is on <html>
    ─────────────────────────────────────────────────────────────────────────── */
@@ -101,7 +126,7 @@ html.dark #root {
 html.dark .bg-white                { background-color: #1E293B !important; }
 html.dark .bg-\[\#F4F4FB\]         { background-color: #0F172A !important; }
 html.dark .bg-\[\#F9F9FC\]         { background-color: rgba(255,255,255,0.03) !important; }
-html.dark .bg-\[\#E8E8F0\]         { background-color: rgba(255,255,255,0.06) !important; }
+html.dark .bg-\[\#E8E8F0\]         { background-color: #1E1E30 !important; }
 html.dark .bg-\[\#F0F0F8\]         { background-color: #060F1E !important; }
 html.dark .bg-\[\#F0F0FB\]         { background-color: #0F172A !important; }
 
@@ -109,9 +134,12 @@ html.dark .bg-\[\#F0F0FB\]         { background-color: #0F172A !important; }
 html.dark .text-\[\#12122A\]       { color: #F0F0FF !important; }
 html.dark .text-\[\#12122A\]\/70   { color: #9494B8 !important; }
 html.dark .text-\[\#12122A\]\/60   { color: #9494B8 !important; }
+html.dark .text-\[\#12122A\]\/55   { color: #9494B8 !important; }
 html.dark .text-\[\#12122A\]\/50   { color: #9494B8 !important; }
+html.dark .text-\[\#12122A\]\/45   { color: #9494B8 !important; }
 html.dark .text-\[\#12122A\]\/40   { color: #9494B8 !important; }
 html.dark .text-\[\#12122A\]\/35   { color: #9494B8 !important; }
+html.dark .text-\[\#12122A\]\/25   { color: rgba(148,148,184,0.5) !important; }
 
 /* Borders */
 html.dark .border-\[\#E5E7EB\]     { border-color: rgba(255,255,255,0.1) !important; }
@@ -129,6 +157,8 @@ html.dark textarea {
   color: #F0F0FF !important;
   border-color: rgba(255,255,255,0.1) !important;
 }
+html.dark input::placeholder,
+html.dark textarea::placeholder { color: #9494B8 !important; }
 
 /* Cards / surfaces with inline style backgrounds */
 html.dark [style*="background: #F4F4FB"],

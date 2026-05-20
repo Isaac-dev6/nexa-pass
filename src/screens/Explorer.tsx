@@ -116,7 +116,7 @@ function TrendSkeleton() {
 
 function HorizSkeleton() {
   return (
-    <div className="shrink-0 w-[210px] rounded-2xl bg-white border border-[#E5E7EB] overflow-hidden animate-pulse">
+    <div className="shrink-0 w-[210px] rounded-2xl border overflow-hidden animate-pulse" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       <div className="h-[115px] bg-[#E8E8F0]" />
       <div className="p-3">
         <div className="h-4 w-3/4 bg-[#E8E8F0] rounded-full mb-2" />
@@ -153,7 +153,8 @@ function HorizCard({ event, onNavigate }: { event: ExploreEvent; onNavigate: () 
   return (
     <button
       onClick={onNavigate}
-      className="shrink-0 w-[210px] text-left bg-white rounded-2xl overflow-hidden border border-[#E5E7EB] shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
+      className="shrink-0 w-[210px] text-left rounded-2xl overflow-hidden border shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
       <div className="relative h-[115px]">
         <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
@@ -181,7 +182,8 @@ function SearchResultCard({ event, onNavigate }: { event: ExploreEvent; onNaviga
   return (
     <button
       onClick={onNavigate}
-      className="bg-white rounded-2xl p-3 flex gap-3 items-center border border-[#E5E7EB] shadow-sm text-left w-full transition-all hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
+      className="rounded-2xl p-3 flex gap-3 items-center border shadow-sm text-left w-full transition-all hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
       <img src={event.imageUrl} alt={event.title} className="w-[72px] h-[72px] rounded-xl object-cover shrink-0" />
       <div className="flex-1 min-w-0">
@@ -211,10 +213,11 @@ function FilterPill({
   return (
     <button
       onClick={onClick}
+      style={!active ? { background: 'var(--surface)' } : undefined}
       className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-semibold transition-all shrink-0 ${
         active
           ? 'bg-gradient-to-r from-primary to-accent text-white shadow-sm'
-          : 'bg-white text-[#12122A]/70 border border-[#E5E7EB] hover:border-primary/30'
+          : 'text-[#12122A]/70 border border-[#E5E7EB] hover:border-primary/30'
       }`}
     >
       {label}
@@ -316,8 +319,8 @@ export function Explorer() {
 
   return (
     <div
-      className="bg-[#F4F4FB] text-[#12122A] min-h-screen pb-24 md:pb-10"
-      style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+      className="text-[#12122A] min-h-screen pb-24 md:pb-10"
+      style={{ background: 'var(--bg)', fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
     >
       {/* ── Header ── */}
       <div className="px-5 pt-12 md:pt-8 pb-4">
@@ -328,11 +331,12 @@ export function Explorer() {
       {/* ── Search bar ── */}
       <div className="px-5 mb-4 relative z-20">
         <div
-          className={`bg-white rounded-2xl flex items-center gap-3 px-4 py-3.5 border transition-all duration-200 ${
+          className={`rounded-2xl flex items-center gap-3 px-4 py-3.5 border transition-all duration-200 ${
             searchFocused
               ? 'border-primary shadow-[0_0_0_3px_rgba(37,99,235,0.12)]'
               : 'border-[#E5E7EB] shadow-sm'
           }`}
+          style={{ background: 'var(--surface)' }}
         >
           <Search size={18} className={searchFocused ? 'text-primary' : 'text-[#12122A]/40'} />
           <input
@@ -366,7 +370,7 @@ export function Explorer() {
 
         {/* Suggestions dropdown */}
         {searchFocused && searchValue.trim() && suggestions.length > 0 && (
-          <div className="absolute top-full left-5 right-5 mt-1 bg-white border border-[#E5E7EB] rounded-2xl shadow-xl z-30 overflow-hidden">
+          <div className="absolute top-full left-5 right-5 mt-1 border rounded-2xl shadow-xl z-30 overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             {suggestions.map((event, idx) => (
               <button
                 key={event.id}
