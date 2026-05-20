@@ -34,7 +34,7 @@ export function Register() {
   const handleGoogleSignIn = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/home` },
+      options: { redirectTo: 'https://nexa-pass-dvbs.vercel.app/home' },
     })
   }
 

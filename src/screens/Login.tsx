@@ -46,7 +46,7 @@ export function Login() {
     // Ensure redirectTo is in Supabase Auth → URL Configuration → Redirect URLs
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/home` },
+      options: { redirectTo: 'https://nexa-pass-dvbs.vercel.app/home' },
     })
   }
 
