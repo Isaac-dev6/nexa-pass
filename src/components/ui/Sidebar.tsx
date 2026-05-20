@@ -1,10 +1,11 @@
-import { Compass, Search, Ticket, User, Plus, LogOut, LayoutDashboard, Moon, Sun } from 'lucide-react'
+import { Compass, Search, Ticket, User, Plus, LogOut, LayoutDashboard, Moon, Sun, Shield } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../contexts/ToastContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { supabase } from '../../lib/supabase'
 import { useIsOrganizer } from '../../hooks/useIsOrganizer'
+import { useAdminRole } from '../../hooks/useAdminRole'
 
 function getInitials(name: string): string {
   return name
@@ -29,6 +30,7 @@ export function Sidebar() {
   const wip = () => showToast('🚧 Cette section est en cours de construction')
 
   const { isOrganizer } = useIsOrganizer(user?.id)
+  const { isAdmin } = useAdminRole(user?.id)
   const { isDark, toggleTheme } = useTheme()
 
   const fullName: string =
@@ -102,6 +104,27 @@ export function Sidebar() {
             <LayoutDashboard size={18} />
             <span>Dashboard Pro</span>
             <span className="ml-auto text-[10px] font-bold bg-accent/15 text-accent px-2 py-0.5 rounded-full">PRO</span>
+          </button>
+        </div>
+      )}
+
+      {/* Administration — only for admins */}
+      {isAdmin && (
+        <div className="px-3 pb-2 border-t pt-3" style={{ borderColor: border }}>
+          <button
+            onClick={() => navigate('/admin')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all text-left ${
+              location.pathname === '/admin'
+                ? 'bg-red-500/10 text-red-500'
+                : isDark ? 'hover:bg-white/5' : 'hover:bg-[#F4F4FB]'
+            }`}
+            style={location.pathname !== '/admin' ? { color: isDark ? '#F0F0FF' : 'rgba(18,18,42,0.6)' } : undefined}
+          >
+            <Shield size={18} />
+            <span>Administration</span>
+            <span className="ml-auto text-[10px] font-extrabold bg-red-500/15 text-red-500 px-2 py-0.5 rounded-full">
+              ADMIN
+            </span>
           </button>
         </div>
       )}
