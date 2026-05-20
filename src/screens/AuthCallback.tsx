@@ -2,44 +2,44 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
-export function AuthCallback() {
+export default function AuthCallback() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const access_token = sessionStorage.getItem('oauth_access_token')
-    const refresh_token = sessionStorage.getItem('oauth_refresh_token')
+    const checkSession = async () => {
+      await new Promise(resolve => setTimeout(resolve, 2000))
 
-    sessionStorage.removeItem('oauth_access_token')
-    sessionStorage.removeItem('oauth_refresh_token')
+      const { data: { session } } = await supabase.auth.getSession()
 
-    if (!access_token) {
-      navigate('/login', { replace: true })
-      return
+      if (session) {
+        navigate('/home', { replace: true })
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+
+        const { data: { session: session2 } } = await supabase.auth.getSession()
+
+        if (session2) {
+          navigate('/home', { replace: true })
+        } else {
+          navigate('/login', { replace: true })
+        }
+      }
     }
 
-    supabase.auth
-      .setSession({ access_token, refresh_token: refresh_token ?? '' })
-      .then(({ error }) => {
-        if (error) {
-          navigate('/login', { replace: true })
-        } else {
-          navigate('/home', { replace: true })
-        }
-      })
-  }, [navigate])
+    checkSession()
+  }, [])
 
   return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center"
-      style={{ background: '#F4F4FB' }}
-    >
-      <div
-        className="w-10 h-10 rounded-full border-[3px] animate-spin"
-        style={{ borderColor: '#2563EB', borderTopColor: 'transparent' }}
-      />
-      <p className="text-sm mt-4" style={{ color: '#12122A', opacity: 0.5 }}>
-        Connexion en cours…
-      </p>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100vh',
+      background: '#F4F4FB',
+    }}>
+      <img src="/logo.png" alt="Nexa Pass" style={{ width: 64, marginBottom: 24 }} />
+      <p style={{ color: '#6B7280', fontSize: 14 }}>Connexion en cours...</p>
     </div>
   )
 }

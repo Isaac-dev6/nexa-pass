@@ -17,7 +17,7 @@ import { TicketView } from './screens/TicketView'
 import { QRScanner } from './screens/QRScanner'
 import { Landing } from './screens/Landing'
 import { EditEvent } from './screens/EditEvent'
-import { AuthCallback } from './screens/AuthCallback'
+import AuthCallback from './screens/AuthCallback'
 import { ThemeProvider } from './contexts/ThemeContext'
 
 function PrivateRoute({ children }: { children: ReactNode }) {
