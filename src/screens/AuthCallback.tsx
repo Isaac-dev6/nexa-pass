@@ -11,22 +11,26 @@ export function AuthCallback() {
       if (handled.current) return
       if (event === 'SIGNED_IN' && session) {
         handled.current = true
-        navigate('/home', { replace: true })
+        setTimeout(() => navigate('/home', { replace: true }), 500)
       }
     })
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (handled.current) return
       if (session) {
-        handled.current = true
-        navigate('/home', { replace: true })
+        setTimeout(() => {
+          if (!handled.current) {
+            handled.current = true
+            navigate('/home', { replace: true })
+          }
+        }, 500)
       } else {
         setTimeout(() => {
           if (!handled.current) {
             handled.current = true
             navigate('/login', { replace: true })
           }
-        }, 3000)
+        }, 10000)
       }
     })
 
