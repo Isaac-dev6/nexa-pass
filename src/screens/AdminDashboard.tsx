@@ -199,9 +199,27 @@ function RowSkeleton({ border }: { border: string }) {
 // ── Main screen ────────────────────────────────────────────────────────────────
 
 export function AdminDashboard() {
-  const { user } = useAuth()
+  const { user, userRole, loading: authLoading } = useAuth()
   const { showToast } = useToast()
   const { isDark } = useTheme()
+
+  // Double guard — AdminRoute in App.tsx already handles this,
+  // but we add a local check to prevent a flash if auth is still loading.
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
+        <div className="w-8 h-8 rounded-full border-[3px] border-t-transparent animate-spin"
+          style={{ borderColor: '#2563EB', borderTopColor: 'transparent' }} />
+      </div>
+    )
+  }
+  if (!user || userRole !== 'admin') {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
+        <p className="text-sm font-bold text-red-500">Accès réservé aux administrateurs.</p>
+      </div>
+    )
+  }
 
   const [activeTab, setActiveTab]   = useState<AdminTab>('validation')
   const [loading, setLoading]       = useState(true)

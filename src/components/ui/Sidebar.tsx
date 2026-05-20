@@ -24,7 +24,7 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, userRole, profileName } = useAuth()
+  const { user, userRole, profileName, loading } = useAuth()
   const { showToast } = useToast()
   const wip = () => showToast('🚧 Cette section est en cours de construction')
 
@@ -89,8 +89,8 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Dashboard Pro — only if organizer */}
-      {isOrganizer && (
+      {/* Dashboard Pro — uniquement si rôle chargé et utilisateur organisateur */}
+      {!loading && isOrganizer && (
         <div className="px-3 pb-2 border-t pt-3 mt-1" style={{ borderColor: border }}>
           <button
             onClick={() => navigate('/organizer')}
@@ -108,8 +108,8 @@ export function Sidebar() {
         </div>
       )}
 
-      {/* Administration — only for admins */}
-      {userRole === 'admin' && (
+      {/* Administration — uniquement si rôle chargé et admin confirmé */}
+      {!loading && userRole === 'admin' && (
         <div className="px-3 pb-2 border-t pt-3" style={{ borderColor: border }}>
           <button
             onClick={() => navigate('/admin')}
