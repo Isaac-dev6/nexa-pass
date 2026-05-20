@@ -12,8 +12,8 @@ import { BottomNav } from '../components/ui/BottomNav'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type TicketStatus = 'upcoming' | 'transferred' | 'cancelled' | 'past'
-type SubTab = TicketStatus
+type TicketStatus = 'upcoming' | 'transferred' | 'cancelled' | 'past' | 'used'
+type SubTab = 'upcoming' | 'transferred' | 'cancelled' | 'past'
 type MainTab = 'tickets' | 'contributions'
 
 interface DisplayTicket {
@@ -30,6 +30,7 @@ interface DisplayTicket {
   imageUrl: string
   orderRef: string
   qrCode: string | null
+  usedAt: string | null
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -50,8 +51,9 @@ function toDisplayTicket(t: SupabaseTicket): DisplayTicket {
   const now = new Date()
 
   let status: TicketStatus
-  if (t.status === 'cancelled')   status = 'cancelled'
+  if (t.status === 'cancelled')        status = 'cancelled'
   else if (t.status === 'transferred') status = 'transferred'
+  else if (t.status === 'used')        status = 'used'
   else if (eventDate && eventDate < now) status = 'past'
   else status = 'upcoming'
 
@@ -73,6 +75,7 @@ function toDisplayTicket(t: SupabaseTicket): DisplayTicket {
     imageUrl: t.events?.cover_url ?? FALLBACK_IMG,
     orderRef: `NXP-${t.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`,
     qrCode: t.qr_code,
+    usedAt: t.used_at,
   }
 }
 
@@ -89,9 +92,17 @@ function formatPrice(n: number) {
   return n.toLocaleString('fr-FR') + ' FCFA'
 }
 
+function formatUsedAt(iso: string): string {
+  const d = new Date(iso)
+  const date = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  return `${date} à ${time}`
+}
+
 function statusConfig(status: TicketStatus) {
   switch (status) {
     case 'upcoming':    return { label: 'Actif',      cls: 'bg-emerald-500 text-white' }
+    case 'used':        return { label: '✓ Scanné',   cls: 'bg-emerald-600 text-white' }
     case 'transferred': return { label: 'Transféré',  cls: 'bg-blue-500 text-white' }
     case 'cancelled':   return { label: 'Annulé',     cls: 'bg-red-500 text-white' }
     case 'past':        return { label: 'Passé',      cls: 'bg-gray-400 text-white' }
@@ -160,9 +171,10 @@ function TicketCard({ ticket, onView }: { ticket: DisplayTicket; onView: () => v
   const { label, cls } = statusConfig(ticket.status)
   const days = daysUntil(ticket.dateIso)
   const showCountdown = ticket.status === 'upcoming' && days > 0 && days <= 7
+  const isUsed = ticket.status === 'used'
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm">
+    <div className={`rounded-2xl border shadow-sm ${isUsed ? 'bg-[#F8F8FC] border-[#E5E7EB]/60' : 'bg-white border-[#E5E7EB]'}`}>
       {/* Image banner */}
       <div className="relative h-[140px] rounded-t-2xl overflow-hidden">
         <img
@@ -238,6 +250,19 @@ function TicketCard({ ticket, onView }: { ticket: DisplayTicket; onView: () => v
             Voir mon billet
           </button>
         )}
+        {ticket.status === 'used' && (
+          <>
+            <div className="w-full h-11 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center gap-2 mb-2 opacity-60">
+              <QrCode size={16} className="text-gray-400" />
+              <span className="text-sm font-semibold text-gray-500">QR Code utilisé</span>
+            </div>
+            {ticket.usedAt && (
+              <p className="text-[11px] text-[#12122A]/45 text-center leading-relaxed">
+                Ce billet a été scanné le {formatUsedAt(ticket.usedAt)}
+              </p>
+            )}
+          </>
+        )}
         {ticket.status === 'past' && (
           <button
             onClick={onView}
@@ -275,7 +300,9 @@ export function Orders() {
   const [subTab, setSubTab] = useState<SubTab>('upcoming')
 
   const allTickets = rawTickets.map(toDisplayTicket)
-  const upcomingCount = allTickets.filter((t) => t.status === 'upcoming').length
+  const activeTickets = allTickets.filter((t) => t.status === 'upcoming')
+  const usedTickets = allTickets.filter((t) => t.status === 'used')
+  const upcomingCount = activeTickets.length
   const filtered = allTickets.filter((t) => t.status === subTab)
 
   return (
@@ -344,6 +371,47 @@ export function Orders() {
               <TicketSkeleton />
               <TicketSkeleton />
             </div>
+          ) : subTab === 'upcoming' ? (
+            activeTickets.length === 0 && usedTickets.length === 0 ? (
+              <EmptyState tab="upcoming" onExplore={() => navigate('/')} />
+            ) : (
+              <div className="px-5 flex flex-col gap-8">
+                {/* Section 1 — Billets actifs */}
+                {activeTickets.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-extrabold text-[#12122A] mb-3">
+                      Billets actifs ({activeTickets.length})
+                    </h3>
+                    <div className="flex flex-col gap-4 md:grid md:grid-cols-2">
+                      {activeTickets.map((ticket) => (
+                        <TicketCard
+                          key={ticket.id}
+                          ticket={ticket}
+                          onView={() => navigate(`/ticket/${ticket.id}`)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Section 2 — Billets utilisés */}
+                {usedTickets.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-extrabold text-[#12122A] mb-3">
+                      Billets utilisés ({usedTickets.length})
+                    </h3>
+                    <div className="flex flex-col gap-4 md:grid md:grid-cols-2">
+                      {usedTickets.map((ticket) => (
+                        <TicketCard
+                          key={ticket.id}
+                          ticket={ticket}
+                          onView={() => {}}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
           ) : filtered.length === 0 ? (
             <EmptyState tab={subTab} onExplore={() => navigate('/')} />
           ) : (

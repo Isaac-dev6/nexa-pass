@@ -5,7 +5,7 @@ import {
 import {
   Ticket, TrendingUp, BarChart2, Calendar,
   Plus, Pencil, QrCode, ChevronRight,
-  TrendingDown, ArrowUpRight, Trash2, PauseCircle, PlayCircle, X, AlertTriangle,
+  TrendingDown, ArrowUpRight, Trash2, PauseCircle, PlayCircle, X, AlertTriangle, RefreshCw,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -196,20 +196,41 @@ export function OrganizerDashboard() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [pausingId, setPausingId] = useState<string | null>(null)
-  const [isLive, setIsLive] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [secondsAgo, setSecondsAgo] = useState(0)
 
+  // Set initial timestamp once data first loads
+  useEffect(() => {
+    if (!orgStats.loading && lastUpdated === null) {
+      setLastUpdated(new Date())
+    }
+  }, [orgStats.loading, lastUpdated])
+
+  // Polling every 10s
   useEffect(() => {
     if (!user?.id) return
-    const channel = supabase
-      .channel('tickets-changes')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, () => {
-        refetchStats()
-      })
-      .subscribe((status) => {
-        setIsLive(status === 'SUBSCRIBED')
-      })
-    return () => { supabase.removeChannel(channel) }
-  }, [user?.id, refetchStats])
+    const interval = setInterval(() => {
+      refetchStats()
+      setLastUpdated(new Date())
+      setSecondsAgo(0)
+    }, 10_000)
+    return () => clearInterval(interval)
+  }, [user?.id])
+
+  // Live "il y a Xs" counter
+  useEffect(() => {
+    if (!lastUpdated) return
+    const timer = setInterval(() => {
+      setSecondsAgo(Math.floor((Date.now() - lastUpdated.getTime()) / 1000))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [lastUpdated])
+
+  function handleManualRefresh() {
+    refetchStats()
+    setLastUpdated(new Date())
+    setSecondsAgo(0)
+  }
 
   async function handleDelete() {
     if (!deleteTarget) return
@@ -292,16 +313,22 @@ export function OrganizerDashboard() {
       <div className="px-5 pt-12 md:pt-8 pb-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-extrabold tracking-tight leading-tight">Mon Dashboard</h1>
-              {isLive && (
-                <span className="flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                  En direct
+            <h1 className="text-2xl font-extrabold tracking-tight leading-tight">Mon Dashboard</h1>
+            <p className="text-sm text-[#12122A]/50 mt-0.5">{orgName}</p>
+            <div className="flex items-center gap-2 mt-1">
+              {lastUpdated && (
+                <span className="text-[11px] text-[#12122A]/35">
+                  Actualisé il y a {secondsAgo}s
                 </span>
               )}
+              <button
+                onClick={handleManualRefresh}
+                className="flex items-center gap-1 text-[11px] font-bold text-primary hover:opacity-70 transition-opacity"
+              >
+                <RefreshCw size={10} />
+                Actualiser
+              </button>
             </div>
-            <p className="text-sm text-[#12122A]/50 mt-0.5">{orgName}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
