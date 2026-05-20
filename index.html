@@ -10,6 +10,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <script>
+      if (window.location.hash && window.location.hash.includes('access_token')) {
+        var params = new URLSearchParams(window.location.hash.substring(1));
+        var access_token = params.get('access_token');
+        var refresh_token = params.get('refresh_token');
+        if (access_token) {
+          sessionStorage.setItem('oauth_access_token', access_token);
+          sessionStorage.setItem('oauth_refresh_token', refresh_token || '');
+          window.location.replace('/auth/callback');
+        }
+      }
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

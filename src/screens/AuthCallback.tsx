@@ -1,40 +1,31 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 export function AuthCallback() {
   const navigate = useNavigate()
-  const handled = useRef(false)
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (handled.current) return
-      if (event === 'SIGNED_IN' && session) {
-        handled.current = true
-        setTimeout(() => navigate('/home', { replace: true }), 500)
-      }
-    })
+    const access_token = sessionStorage.getItem('oauth_access_token')
+    const refresh_token = sessionStorage.getItem('oauth_refresh_token')
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (handled.current) return
-      if (session) {
-        setTimeout(() => {
-          if (!handled.current) {
-            handled.current = true
-            navigate('/home', { replace: true })
-          }
-        }, 500)
-      } else {
-        setTimeout(() => {
-          if (!handled.current) {
-            handled.current = true
-            navigate('/login', { replace: true })
-          }
-        }, 10000)
-      }
-    })
+    sessionStorage.removeItem('oauth_access_token')
+    sessionStorage.removeItem('oauth_refresh_token')
 
-    return () => subscription.unsubscribe()
+    if (!access_token) {
+      navigate('/login', { replace: true })
+      return
+    }
+
+    supabase.auth
+      .setSession({ access_token, refresh_token: refresh_token ?? '' })
+      .then(({ error }) => {
+        if (error) {
+          navigate('/login', { replace: true })
+        } else {
+          navigate('/home', { replace: true })
+        }
+      })
   }, [navigate])
 
   return (
