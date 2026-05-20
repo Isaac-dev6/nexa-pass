@@ -91,7 +91,6 @@ export function useEvents() {
       .from('events')
       .select('*')
       .eq('status', 'active')
-      .eq('validated', true)
       .order('date', { ascending: true })
       .then(({ data, error: err }) => {
         if (cancelled) return

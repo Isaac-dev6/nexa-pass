@@ -28,8 +28,9 @@ export function Sidebar() {
   const { showToast } = useToast()
   const wip = () => showToast('🚧 Cette section est en cours de construction')
 
-  const { isOrganizer } = useIsOrganizer(user?.id)
+  const { isOrganizer: hasEvents } = useIsOrganizer(user?.id)
   const { userRole } = useAuth()
+  const isOrganizer = hasEvents || userRole === 'organizer' || userRole === 'admin'
   const { isDark, toggleTheme } = useTheme()
 
   const fullName: string =
