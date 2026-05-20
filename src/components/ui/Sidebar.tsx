@@ -5,7 +5,6 @@ import { useToast } from '../../contexts/ToastContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { supabase } from '../../lib/supabase'
 import { useIsOrganizer } from '../../hooks/useIsOrganizer'
-import { useAdminRole } from '../../hooks/useAdminRole'
 
 function getInitials(name: string): string {
   return name
@@ -30,7 +29,7 @@ export function Sidebar() {
   const wip = () => showToast('🚧 Cette section est en cours de construction')
 
   const { isOrganizer } = useIsOrganizer(user?.id)
-  const { isAdmin } = useAdminRole(user?.id)
+  const { userRole } = useAuth()
   const { isDark, toggleTheme } = useTheme()
 
   const fullName: string =
@@ -109,7 +108,7 @@ export function Sidebar() {
       )}
 
       {/* Administration — only for admins */}
-      {isAdmin && (
+      {userRole === 'admin' && (
         <div className="px-3 pb-2 border-t pt-3" style={{ borderColor: border }}>
           <button
             onClick={() => navigate('/admin')}

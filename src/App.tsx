@@ -21,7 +21,6 @@ import { Landing } from './screens/Landing'
 import { EditEvent } from './screens/EditEvent'
 import AuthCallback from './screens/AuthCallback'
 import { ThemeProvider } from './contexts/ThemeContext'
-import { useAdminRole } from './hooks/useAdminRole'
 
 const Spinner = () => (
   <div className="min-h-screen flex items-center justify-center" style={{ background: '#F4F4FB' }}>
@@ -47,11 +46,10 @@ function AccessDenied() {
 }
 
 function AdminRoute({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth()
-  const { isAdmin, loading: roleLoading } = useAdminRole(user?.id)
-  if (loading || roleLoading) return <Spinner />
+  const { user, loading, userRole } = useAuth()
+  if (loading) return <Spinner />
   if (!user) return <Navigate to="/login" replace />
-  if (!isAdmin) return <AccessDenied />
+  if (userRole !== 'admin') return <AccessDenied />
   return <>{children}</>
 }
 

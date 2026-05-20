@@ -13,16 +13,15 @@ export function useIsOrganizer(userId: string | undefined) {
     }
 
     let cancelled = false
-    supabase
-      .from('events')
-      .select('id', { count: 'exact', head: true })
-      .eq('organizer_id', userId)
-      .then(({ count }) => {
-        if (!cancelled) {
-          setIsOrganizer((count ?? 0) > 0)
-          setLoading(false)
-        }
-      })
+    Promise.all([
+      supabase.from('profiles').select('role').eq('id', userId).single(),
+      supabase.from('events').select('id', { count: 'exact', head: true }).eq('organizer_id', userId),
+    ]).then(([{ data: profile }, { count }]) => {
+      if (!cancelled) {
+        setIsOrganizer(profile?.role === 'organizer' || profile?.role === 'admin' || (count ?? 0) > 0)
+        setLoading(false)
+      }
+    })
 
     return () => { cancelled = true }
   }, [userId])
