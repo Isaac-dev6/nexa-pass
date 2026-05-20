@@ -156,12 +156,7 @@ export function Landing() {
         <div className="relative z-10 flex flex-col items-center text-center max-w-3xl w-full">
           {/* Logo */}
           <div className="flex items-center gap-3 mb-12">
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl"
-              style={{ background: 'linear-gradient(135deg, #2563EB, #9333EA)', boxShadow: '0 0 40px rgba(37,99,235,0.5)' }}
-            >
-              <span className="text-white font-black text-2xl">N</span>
-            </div>
+            <img src="/logo.png" alt="Nexa Pass" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />
             <span className="font-black text-3xl tracking-tight">Nexa Pass</span>
           </div>
 
@@ -430,12 +425,7 @@ export function Landing() {
         <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           {/* Brand */}
           <div className="flex items-center gap-3">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #2563EB, #9333EA)' }}
-            >
-              <span className="text-white font-black text-sm">N</span>
-            </div>
+            <img src="/logo.png" alt="Nexa Pass" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
             <span className="font-black text-white/75 text-lg">Nexa Pass</span>
           </div>
 

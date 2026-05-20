@@ -99,12 +99,7 @@ export function Register() {
 
         {/* Logo */}
         <div className="flex justify-center mb-6">
-          <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-[0_0_15px_rgba(37,99,235,0.3)]"
-            style={{ background: 'linear-gradient(135deg, #2563EB, #9333EA)' }}
-          >
-            <span className="text-white font-extrabold text-2xl tracking-tight">N</span>
-          </div>
+          <img src="/logo.png" alt="Nexa Pass" style={{ width: '64px', height: '64px', objectFit: 'contain' }} />
         </div>
 
         {/* Title */}

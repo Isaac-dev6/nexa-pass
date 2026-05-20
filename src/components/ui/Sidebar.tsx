@@ -41,12 +41,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="px-6 py-6 border-b border-[#E5E7EB]">
         <div className="flex items-center gap-3">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: 'linear-gradient(135deg, #2563EB, #9333EA)' }}
-          >
-            <span className="text-white font-extrabold text-sm">N</span>
-          </div>
+          <img src="/logo.png" alt="Nexa Pass" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
           <span className="font-extrabold text-lg text-[#12122A] tracking-tight">Nexa Pass</span>
         </div>
       </div>
