@@ -61,6 +61,8 @@ export interface OrgStats {
   buyerNames: Record<string, string>
   chartData: { day: string; ventes: number }[]
   perEvent: Record<string, { sold: number; revenue: number }>
+  fetchError: string | null
+  lastFetched: Date | null
   loading: boolean
 }
 
@@ -199,6 +201,8 @@ export function useOrganizerStats(organizerId: string | undefined): OrgStats & {
     buyerNames: {},
     chartData: [],
     perEvent: {},
+    fetchError: null,
+    lastFetched: null,
     loading: true,
   })
   const [tick, setTick] = useState(0)
@@ -206,36 +210,52 @@ export function useOrganizerStats(organizerId: string | undefined): OrgStats & {
 
   useEffect(() => {
     if (!organizerId) {
-      setStats((s) => ({ ...s, loading: false }))
+      setStats((s) => ({ ...s, fetchError: null, loading: false }))
       return
     }
 
     let cancelled = false
 
     async function load() {
+      console.log('Fetching stats for organizer:', organizerId)
+
       // 1. Get organizer's event IDs
-      const { data: eventsData } = await supabase
+      const { data: eventsData, error: eventsError } = await supabase
         .from('events')
         .select('id')
         .eq('organizer_id', organizerId)
 
       if (cancelled) return
 
+      console.log('Events found:', eventsData, 'Error:', eventsError)
+
+      if (eventsError) {
+        setStats((s) => ({ ...s, fetchError: eventsError.message, lastFetched: new Date(), loading: false }))
+        return
+      }
+
       const eventIds = (eventsData ?? []).map((e) => e.id as string)
 
       if (eventIds.length === 0) {
-        setStats({ ticketCount: 0, totalSold: 0, revenue: 0, scannedCount: 0, activeTicketsCount: 0, recentTickets: [], buyerNames: {}, chartData: buildEmptyChart(), perEvent: {}, loading: false })
+        setStats({ ticketCount: 0, totalSold: 0, revenue: 0, scannedCount: 0, activeTicketsCount: 0, recentTickets: [], buyerNames: {}, chartData: buildEmptyChart(), perEvent: {}, fetchError: null, lastFetched: new Date(), loading: false })
         return
       }
 
       // 2. Fetch all tickets for those events
-      const { data: ticketsData } = await supabase
+      const { data: ticketsData, error: ticketsError } = await supabase
         .from('tickets')
         .select('id, event_id, category, total_price, quantity, status, created_at, user_id')
         .in('event_id', eventIds)
         .order('created_at', { ascending: false })
 
       if (cancelled) return
+
+      console.log('Tickets found:', ticketsData, 'Error:', ticketsError)
+
+      if (ticketsError) {
+        setStats((s) => ({ ...s, fetchError: ticketsError.message, lastFetched: new Date(), loading: false }))
+        return
+      }
 
       const rows = (ticketsData ?? []) as OrgTicketStat[]
 
@@ -270,7 +290,7 @@ export function useOrganizerStats(organizerId: string | undefined): OrgStats & {
         }
       })
 
-      // 6. Buyer display names from profiles (if full_name column exists)
+      // 6. Buyer display names from profiles
       const recentRows = rows.slice(0, 5)
       const uniqueUserIds = [...new Set(recentRows.map((t) => t.user_id))]
       const buyerNames: Record<string, string> = {}
@@ -285,10 +305,13 @@ export function useOrganizerStats(organizerId: string | undefined): OrgStats & {
         }
       }
 
-      setStats({ ticketCount: rows.length, totalSold, revenue, scannedCount, activeTicketsCount, recentTickets: recentRows, buyerNames, chartData, perEvent, loading: false })
+      setStats({ ticketCount: rows.length, totalSold, revenue, scannedCount, activeTicketsCount, recentTickets: recentRows, buyerNames, chartData, perEvent, fetchError: null, lastFetched: new Date(), loading: false })
     }
 
-    load().catch(console.error)
+    load().catch((err) => {
+      console.error('useOrganizerStats load error:', err)
+      setStats((s) => ({ ...s, fetchError: String(err?.message ?? err), lastFetched: new Date(), loading: false }))
+    })
     return () => { cancelled = true }
   }, [organizerId, tick])
 

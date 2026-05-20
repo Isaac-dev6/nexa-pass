@@ -196,40 +196,23 @@ export function OrganizerDashboard() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [pausingId, setPausingId] = useState<string | null>(null)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-  const [secondsAgo, setSecondsAgo] = useState(0)
+  const [refreshing, setRefreshing] = useState(false)
 
-  // Set initial timestamp once data first loads
+  // Stop spinner when Supabase fetch completes (lastFetched updates)
   useEffect(() => {
-    if (!orgStats.loading && lastUpdated === null) {
-      setLastUpdated(new Date())
-    }
-  }, [orgStats.loading, lastUpdated])
+    if (orgStats.lastFetched) setRefreshing(false)
+  }, [orgStats.lastFetched])
 
   // Polling every 10s
   useEffect(() => {
     if (!user?.id) return
-    const interval = setInterval(() => {
-      refetchStats()
-      setLastUpdated(new Date())
-      setSecondsAgo(0)
-    }, 10_000)
+    const interval = setInterval(() => { refetchStats() }, 10_000)
     return () => clearInterval(interval)
   }, [user?.id])
 
-  // Live "il y a Xs" counter
-  useEffect(() => {
-    if (!lastUpdated) return
-    const timer = setInterval(() => {
-      setSecondsAgo(Math.floor((Date.now() - lastUpdated.getTime()) / 1000))
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [lastUpdated])
-
   function handleManualRefresh() {
+    setRefreshing(true)
     refetchStats()
-    setLastUpdated(new Date())
-    setSecondsAgo(0)
   }
 
   async function handleDelete() {
@@ -315,22 +298,24 @@ export function OrganizerDashboard() {
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight leading-tight">Mon Dashboard</h1>
             <p className="text-sm text-[#12122A]/50 mt-0.5">{orgName}</p>
-            <div className="flex items-center gap-2 mt-1">
-              {lastUpdated && (
-                <span className="text-[11px] text-[#12122A]/35">
-                  Actualisé il y a {secondsAgo}s
-                </span>
-              )}
-              <button
-                onClick={handleManualRefresh}
-                className="flex items-center gap-1 text-[11px] font-bold text-primary hover:opacity-70 transition-opacity"
-              >
-                <RefreshCw size={10} />
-                Actualiser
-              </button>
-            </div>
+            {orgStats.lastFetched && (
+              <p className="text-[11px] text-[#12122A]/35 mt-0.5">
+                Dernière mise à jour : {orgStats.lastFetched.toLocaleTimeString('fr-FR')}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleManualRefresh}
+              disabled={refreshing}
+              className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-[#E5E7EB] bg-white text-[#12122A] transition-all hover:border-primary/40 hover:text-primary active:scale-[0.97] disabled:opacity-50"
+            >
+              {refreshing
+                ? <div className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                : <RefreshCw size={16} />
+              }
+              <span className="hidden sm:inline">Actualiser</span>
+            </button>
             <button
               onClick={() => navigate('/scanner')}
               className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-[#E5E7EB] bg-white text-[#12122A] transition-all hover:border-primary/40 hover:text-primary active:scale-[0.97]"
@@ -350,6 +335,16 @@ export function OrganizerDashboard() {
           </div>
         </div>
       </div>
+
+      {/* ── Error banner ── */}
+      {orgStats.fetchError && (
+        <div className="mx-5 mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-100 flex items-center gap-2.5">
+          <AlertTriangle size={16} className="text-red-500 shrink-0" />
+          <p className="text-sm text-red-600 font-semibold flex-1 leading-snug">
+            Erreur Supabase : {orgStats.fetchError}
+          </p>
+        </div>
+      )}
 
       {/* ── Quick stats ── */}
       <div className="px-5 mb-6 grid grid-cols-2 gap-3">
