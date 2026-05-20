@@ -17,15 +17,23 @@ const AuthContext = createContext<AuthContextValue>({
   profileName: null,
 })
 
-async function fetchProfile(userId: string) {
+// Tries RPC first (SECURITY DEFINER — bypasses RLS entirely),
+// falls back to direct query if the function doesn't exist yet.
+async function fetchProfile(userId: string): Promise<{ role?: string; full_name?: string } | null> {
+  const { data: rpcData, error: rpcErr } = await supabase.rpc('get_my_profile')
+  if (!rpcErr && rpcData) {
+    const p = rpcData as { role?: string; full_name?: string }
+    console.log('Profile loaded (RPC):', p, '| Role:', p?.role)
+    return p
+  }
+  console.warn('[AuthContext] get_my_profile RPC failed:', rpcErr?.message, '→ direct query fallback')
   const { data, error } = await supabase
     .from('profiles')
     .select('role, full_name')
     .eq('id', userId)
     .single()
-  if (error) console.error('[AuthContext] profiles fetch error:', error.message)
-  console.log('Profile loaded:', data)
-  console.log('Role set to:', data?.role)
+  if (error) console.error('[AuthContext] direct profiles error:', error.message)
+  console.log('Profile loaded (direct):', data, '| Role:', data?.role)
   return data
 }
 
@@ -38,34 +46,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false
 
-    // ── Initial load: getSession → fetch profile → setLoading(false)
-    // This sequence is stable and fires exactly once, avoiding the
-    // 'participant' → 'admin' flash caused by onAuthStateChange firing
-    // multiple times (INITIAL_SESSION, TOKEN_REFRESHED, etc.)
+    // Initial load: sequential getSession → profile → setLoading(false)
     async function init() {
       const { data: { session } } = await supabase.auth.getSession()
       if (cancelled) return
-
       setUser(session?.user ?? null)
-
       if (session?.user) {
         const profile = await fetchProfile(session.user.id)
         if (cancelled) return
         setUserRole(profile?.role || 'participant')
         setProfileName(profile?.full_name || null)
       }
-
       setLoading(false)
     }
 
     init()
 
-    // ── Subsequent changes: login, logout, token refresh
-    // Does NOT touch loading — that is managed by init() above.
+    // Subsequent auth changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (cancelled) return
       setUser(session?.user ?? null)
-
       if (session?.user) {
         fetchProfile(session.user.id).then((profile) => {
           if (cancelled) return
@@ -78,10 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })
 
-    return () => {
-      cancelled = true
-      subscription.unsubscribe()
-    }
+    return () => { cancelled = true; subscription.unsubscribe() }
   }, [])
 
   return (

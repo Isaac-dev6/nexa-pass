@@ -87,22 +87,38 @@ export function useEvents() {
 
   useEffect(() => {
     let cancelled = false
-    supabase
-      .from('events')
-      .select('*')
-      .eq('status', 'active')
-      .order('date', { ascending: true })
-      .then(({ data, error: err }) => {
-        if (cancelled) return
-        if (err) {
-          console.error('[useEvents] Supabase error:', err.message, err)
-          setError(err.message)
-        } else {
-          console.log('[useEvents] events loaded:', data?.length ?? 0)
-          setEvents(data ?? [])
+
+    async function load() {
+      // Try RPC first (SECURITY DEFINER — bypasses RLS)
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('get_active_events')
+      if (!rpcErr && rpcData) {
+        if (!cancelled) {
+          console.log('[useEvents] loaded via RPC:', (rpcData as unknown[]).length)
+          setEvents(rpcData as SupabaseEvent[])
+          setLoading(false)
         }
-        setLoading(false)
-      })
+        return
+      }
+      console.warn('[useEvents] get_active_events RPC failed:', rpcErr?.message, '→ direct query fallback')
+
+      // Fallback: direct query (requires events_public_read RLS policy)
+      const { data, error: err } = await supabase
+        .from('events')
+        .select('*')
+        .eq('status', 'active')
+        .order('date', { ascending: true })
+      if (cancelled) return
+      if (err) {
+        console.error('[useEvents] direct query error:', err.message)
+        setError(err.message)
+      } else {
+        console.log('[useEvents] loaded via direct query:', data?.length ?? 0)
+        setEvents(data ?? [])
+      }
+      setLoading(false)
+    }
+
+    load()
     return () => { cancelled = true }
   }, [])
 
