@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import type { AuthError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { useToast } from '../contexts/ToastContext'
+import { PhoneInput } from '../components/ui/PhoneInput'
 
 function getErrorMessage(error: AuthError): string {
   const msg = error.message
@@ -29,6 +30,13 @@ export function Register() {
   const navigate = useNavigate()
   const { showToast } = useToast()
   const wip = () => showToast('🚧 Cette section est en cours de construction')
+
+  const handleGoogleSignIn = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/home` },
+    })
+  }
 
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -66,7 +74,7 @@ export function Register() {
         options: {
           data: {
             full_name: form.fullName.trim(),
-            phone: `+242${form.phone.replace(/\s/g, '')}`,
+            phone: form.phone,
           },
         },
       })
@@ -78,7 +86,7 @@ export function Register() {
 
       if (data.session) {
         showToast('✅ Compte créé avec succès !')
-        navigate('/')
+        navigate('/home')
       } else {
         showToast('📧 Vérifie ton email pour confirmer ton compte')
         navigate('/login')
@@ -117,7 +125,7 @@ export function Register() {
         <div className="flex flex-col gap-3 mb-5">
           <button
             type="button"
-            onClick={wip}
+            onClick={handleGoogleSignIn}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-[#E5E7EB] bg-white text-[#12122A] text-sm font-semibold hover:bg-[#F4F4FB] transition-colors"
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -170,21 +178,13 @@ export function Register() {
             className={inputClass}
           />
 
-          <div className="flex rounded-xl border border-[#E5E7EB] bg-white overflow-hidden focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#2563EB]/10 transition-all">
-            <div className="flex items-center gap-2 px-3 border-r border-[#E5E7EB] shrink-0">
-              <span className="text-base leading-none">🇨🇬</span>
-              <span className="text-sm text-[#12122A]/60 font-medium">+242</span>
-            </div>
-            <input
-              type="tel"
-              name="phone"
-              value={form.phone}
-              onChange={handleChange}
-              placeholder="06 000 00 00"
-              autoComplete="off"
-              className="flex-1 px-3 py-3 bg-transparent text-[#12122A] text-sm outline-none placeholder:text-[#12122A]/40"
-            />
-          </div>
+          <PhoneInput
+            value={form.phone}
+            onChange={(fullNumber) => {
+              setError(null)
+              setForm((p) => ({ ...p, phone: fullNumber }))
+            }}
+          />
 
           <div className="relative">
             <input

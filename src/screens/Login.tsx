@@ -42,6 +42,14 @@ export function Login() {
   const { showToast } = useToast()
   const wip = () => showToast('🚧 Cette section est en cours de construction')
 
+  const handleGoogleSignIn = async () => {
+    // Ensure redirectTo is in Supabase Auth → URL Configuration → Redirect URLs
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/home` },
+    })
+  }
+
   const [step, setStep] = useState<'identifier' | 'password'>('identifier')
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
@@ -71,7 +79,7 @@ export function Login() {
       if (authError) {
         setError(getErrorMessage(authError))
       } else {
-        navigate('/')
+        navigate('/home')
       }
     } catch {
       setError('Erreur de connexion. Vérifie ta connexion internet')
@@ -212,7 +220,7 @@ export function Login() {
         <div className="flex flex-col gap-3">
           <button
             type="button"
-            onClick={wip}
+            onClick={handleGoogleSignIn}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-[#E5E7EB] bg-white text-[#12122A] text-sm font-semibold hover:bg-[#F4F4FB] transition-colors"
           >
             <GoogleLogo />

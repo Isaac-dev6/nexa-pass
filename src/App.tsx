@@ -16,6 +16,8 @@ import { Checkout } from './screens/Checkout'
 import { TicketView } from './screens/TicketView'
 import { QRScanner } from './screens/QRScanner'
 import { Landing } from './screens/Landing'
+import { EditEvent } from './screens/EditEvent'
+import { ThemeProvider } from './contexts/ThemeContext'
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
@@ -40,6 +42,7 @@ function PrivateRoute({ children }: { children: ReactNode }) {
 function App() {
   return (
     <BrowserRouter>
+      <ThemeProvider>
       <AuthProvider>
         <ToastProvider>
           <Routes>
@@ -54,11 +57,13 @@ function App() {
             <Route path="/checkout" element={<PrivateRoute><AppShell><Checkout /></AppShell></PrivateRoute>} />
             <Route path="/ticket/:id" element={<PrivateRoute><AppShell><TicketView /></AppShell></PrivateRoute>} />
             <Route path="/scanner" element={<PrivateRoute><QRScanner /></PrivateRoute>} />
+            <Route path="/event/edit/:id" element={<PrivateRoute><AppShell><EditEvent /></AppShell></PrivateRoute>} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
           </Routes>
         </ToastProvider>
       </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   )
 }

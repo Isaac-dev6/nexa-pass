@@ -5,18 +5,71 @@ import {
 import {
   Ticket, TrendingUp, BarChart2, Calendar,
   Plus, Pencil, QrCode, ChevronRight,
-  TrendingDown, ArrowUpRight,
+  TrendingDown, ArrowUpRight, Trash2, PauseCircle, PlayCircle, X, AlertTriangle,
 } from 'lucide-react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../contexts/ToastContext'
 import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabase'
 import { useOrganizerEvents, useOrganizerStats, formatTimeAgo } from '../hooks/useEvents'
 import type { SupabaseEvent } from '../hooks/useEvents'
 import { BottomNav } from '../components/ui/BottomNav'
 
+// ── Confirm Delete Modal ──────────────────────────────────────────────────────
+
+function DeleteEventModal({
+  title, onConfirm, onClose, loading,
+}: { title: string; onConfirm: () => void; onClose: () => void; loading: boolean }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative z-10 w-full max-w-[430px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl p-6"
+        style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+              <AlertTriangle size={20} className="text-red-500" />
+            </div>
+            <h3 className="text-base font-extrabold text-[#12122A]">Supprimer l'événement</h3>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-[#F4F4FB] flex items-center justify-center text-[#12122A]/50 hover:text-[#12122A]">
+            <X size={15} />
+          </button>
+        </div>
+        <p className="text-sm text-[#12122A]/60 mb-1 leading-relaxed">
+          Êtes-vous sûr de vouloir supprimer l'événement
+        </p>
+        <p className="text-sm font-bold text-[#12122A] mb-5">« {title} » ?</p>
+        <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-5">
+          Cette action est irréversible. Les billets déjà vendus ne seront pas remboursés automatiquement.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 h-12 rounded-xl border border-[#E5E7EB] text-sm font-bold text-[#12122A]/60 hover:text-[#12122A] hover:border-[#12122A]/20 transition-all"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 h-12 rounded-xl bg-red-500 text-white font-bold text-sm flex items-center justify-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {loading ? <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" /> : <Trash2 size={15} />}
+            {loading ? 'Suppression…' : 'Supprimer'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type EventStatus = 'Actif' | 'Complet' | 'Brouillon' | 'Terminé'
+type EventStatus = 'Actif' | 'Complet' | 'Brouillon' | 'Terminé' | 'En pause'
 
 interface OrgEvent {
   id: string
@@ -47,6 +100,7 @@ function toEventStatus(status: string): EventStatus {
     case 'active':    return 'Actif'
     case 'draft':     return 'Brouillon'
     case 'cancelled': return 'Terminé'
+    case 'paused':    return 'En pause'
     default:          return 'Brouillon'
   }
 }
@@ -80,10 +134,11 @@ function pct(sold: number, total: number) {
 
 function statusStyle(status: EventStatus): { bg: string; text: string } {
   switch (status) {
-    case 'Actif':    return { bg: 'bg-emerald-500', text: 'text-white' }
-    case 'Complet':  return { bg: 'bg-primary',     text: 'text-white' }
-    case 'Brouillon': return { bg: 'bg-gray-300',   text: 'text-gray-700' }
-    case 'Terminé':  return { bg: 'bg-[#12122A]/40', text: 'text-white' }
+    case 'Actif':    return { bg: 'bg-emerald-500',   text: 'text-white' }
+    case 'Complet':  return { bg: 'bg-primary',        text: 'text-white' }
+    case 'Brouillon': return { bg: 'bg-gray-300',     text: 'text-gray-700' }
+    case 'Terminé':  return { bg: 'bg-[#12122A]/40',  text: 'text-white' }
+    case 'En pause': return { bg: 'bg-amber-400',     text: 'text-white' }
   }
 }
 
@@ -136,6 +191,32 @@ export function OrganizerDashboard() {
   const { events: rawEvents, loading: eventsLoading } = useOrganizerEvents(user?.id)
   const orgStats = useOrganizerStats(user?.id)
   const wip = () => showToast('🚧 Cette section est en cours de construction')
+
+  // Delete modal
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [pausingId, setPausingId] = useState<string | null>(null)
+
+  async function handleDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    const { error } = await supabase.from('events').delete().eq('id', deleteTarget.id).eq('organizer_id', user?.id!)
+    setDeleting(false)
+    if (error) { showToast('Erreur : ' + error.message); return }
+    showToast('Événement supprimé')
+    setDeleteTarget(null)
+    navigate(0)
+  }
+
+  async function handleTogglePause(event: OrgEvent, rawStatus: string) {
+    setPausingId(event.id)
+    const newStatus = rawStatus === 'paused' ? 'active' : 'paused'
+    const { error } = await supabase.from('events').update({ status: newStatus }).eq('id', event.id).eq('organizer_id', user?.id!)
+    setPausingId(null)
+    if (error) { showToast('Erreur : ' + error.message); return }
+    showToast(newStatus === 'paused' ? 'Événement mis en pause' : 'Événement réactivé')
+    navigate(0)
+  }
 
   const orgName = user?.user_metadata?.full_name ?? 'Organisateur'
   const activeCount = rawEvents.filter((e) => e.status === 'active').length
@@ -329,9 +410,13 @@ export function OrganizerDashboard() {
               </button>
             </div>
           ) : (
-            orgEvents.map((event) => {
+            orgEvents.map((event, idx) => {
+              const rawEvent = rawEvents[idx]
+              const rawStatus = rawEvent?.status ?? 'active'
               const fill = pct(event.sold, event.total)
               const { bg, text } = statusStyle(event.status)
+              const isPaused = rawStatus === 'paused'
+              const isPausing = pausingId === event.id
               return (
                 <div key={event.id} className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm overflow-hidden">
                   {/* Image */}
@@ -377,10 +462,10 @@ export function OrganizerDashboard() {
                       <p className="text-sm font-extrabold text-primary mb-4">{formatRevenue(event.revenue)}</p>
                     )}
 
-                    {/* Action buttons */}
-                    <div className="flex gap-2">
+                    {/* Action buttons — row 1 */}
+                    <div className="flex gap-2 mb-2">
                       <button
-                        onClick={wip}
+                        onClick={() => navigate(`/event/edit/${event.id}`)}
                         className="flex-1 h-9 rounded-xl border border-[#E5E7EB] flex items-center justify-center gap-1.5 text-xs font-bold text-[#12122A]/70 hover:border-primary/40 hover:text-primary transition-all"
                       >
                         <Pencil size={13} />
@@ -393,12 +478,30 @@ export function OrganizerDashboard() {
                         <QrCode size={13} />
                         Scanner
                       </button>
+                    </div>
+                    {/* Action buttons — row 2 */}
+                    <div className="flex gap-2">
                       <button
-                        onClick={wip}
-                        className="flex-1 h-9 rounded-xl border border-[#E5E7EB] flex items-center justify-center gap-1.5 text-xs font-bold text-[#12122A]/70 hover:border-primary/40 hover:text-primary transition-all"
+                        onClick={() => handleTogglePause(event, rawStatus)}
+                        disabled={isPausing}
+                        className={`flex-1 h-9 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all disabled:opacity-50 ${
+                          isPaused
+                            ? 'border-emerald-300 text-emerald-600 hover:bg-emerald-50'
+                            : 'border-amber-300 text-amber-600 hover:bg-amber-50'
+                        }`}
                       >
-                        <BarChart2 size={13} />
-                        Stats
+                        {isPausing
+                          ? <div className="w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                          : isPaused ? <PlayCircle size={13} /> : <PauseCircle size={13} />
+                        }
+                        {isPaused ? 'Réactiver' : 'Pause'}
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget({ id: event.id, title: event.title })}
+                        className="flex-1 h-9 rounded-xl border border-red-100 flex items-center justify-center gap-1.5 text-xs font-bold text-red-400 hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-all"
+                      >
+                        <Trash2 size={13} />
+                        Supprimer
                       </button>
                     </div>
                   </div>
@@ -462,6 +565,15 @@ export function OrganizerDashboard() {
       </div>
 
       <BottomNav />
+
+      {deleteTarget && (
+        <DeleteEventModal
+          title={deleteTarget.title}
+          onConfirm={handleDelete}
+          onClose={() => setDeleteTarget(null)}
+          loading={deleting}
+        />
+      )}
     </div>
   )
 }

@@ -1,7 +1,8 @@
-import { Compass, Search, Ticket, User, Plus, LogOut, LayoutDashboard } from 'lucide-react'
+import { Compass, Search, Ticket, User, Plus, LogOut, LayoutDashboard, Moon, Sun } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../contexts/ToastContext'
+import { useTheme } from '../../contexts/ThemeContext'
 import { supabase } from '../../lib/supabase'
 import { useIsOrganizer } from '../../hooks/useIsOrganizer'
 
@@ -28,6 +29,7 @@ export function Sidebar() {
   const wip = () => showToast('🚧 Cette section est en cours de construction')
 
   const { isOrganizer } = useIsOrganizer(user?.id)
+  const { isDark, toggleTheme } = useTheme()
   const fullName: string = user?.user_metadata?.full_name ?? 'Utilisateur'
   const initials = getInitials(fullName)
 
@@ -84,6 +86,26 @@ export function Sidebar() {
           </button>
         </div>
       )}
+
+      {/* Dark mode toggle */}
+      <div className="px-3 pb-2">
+        <button
+          onClick={toggleTheme}
+          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold text-[#12122A]/60 hover:bg-[#F4F4FB] hover:text-[#12122A] transition-all"
+        >
+          {isDark ? <Moon size={16} /> : <Sun size={16} />}
+          {isDark ? 'Mode sombre' : 'Mode clair'}
+          <span
+            className="ml-auto w-9 h-5 rounded-full relative transition-colors duration-200 shrink-0"
+            style={{ background: isDark ? '#2563EB' : '#D1D5DB' }}
+          >
+            <span
+              className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200"
+              style={{ transform: isDark ? 'translateX(1.125rem)' : 'translateX(0.125rem)' }}
+            />
+          </span>
+        </button>
+      </div>
 
       {/* Create event button */}
       <div className="px-3 pb-4">

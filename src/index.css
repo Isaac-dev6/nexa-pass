@@ -80,6 +80,59 @@ html, body {
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
+/* ── Dark mode overrides ─────────────────────────────────────────────────────
+   These override the hardcoded Tailwind light-mode classes when .dark is on <html>
+   ─────────────────────────────────────────────────────────────────────────── */
+
+html.dark body {
+  background: #0F172A;
+  color: #F0F0FF;
+}
+
+html.dark #root {
+  background: #0F172A;
+}
+
+@media (min-width: 768px) {
+  html.dark body { background: #060F1E; }
+}
+
+/* Backgrounds */
+html.dark .bg-white                { background-color: #1E293B !important; }
+html.dark .bg-\[\#F4F4FB\]         { background-color: #0F172A !important; }
+html.dark .bg-\[\#F9F9FC\]         { background-color: rgba(255,255,255,0.03) !important; }
+html.dark .bg-\[\#E8E8F0\]         { background-color: rgba(255,255,255,0.06) !important; }
+html.dark .bg-\[\#F0F0F8\]         { background-color: #060F1E !important; }
+html.dark .bg-\[\#F0F0FB\]         { background-color: #0F172A !important; }
+
+/* Text */
+html.dark .text-\[\#12122A\]       { color: #E2E8F0 !important; }
+
+/* Borders */
+html.dark .border-\[\#E5E7EB\]     { border-color: rgba(255,255,255,0.1) !important; }
+html.dark .border-\[\#F4F4FB\]     { border-color: rgba(255,255,255,0.06) !important; }
+html.dark .divide-\[\#F4F4FB\] > * { border-color: rgba(255,255,255,0.06) !important; }
+
+/* Inputs */
+html.dark input:not([style]):not([class*="bg-\["]):not([class*="bg-black"]):not([class*="bg-primary"]):not([class*="bg-red"]):not([class*="bg-emerald"]) {
+  background-color: #1E293B !important;
+  color: #E2E8F0 !important;
+  border-color: rgba(255,255,255,0.12) !important;
+}
+html.dark textarea {
+  background-color: #1E293B !important;
+  color: #E2E8F0 !important;
+  border-color: rgba(255,255,255,0.12) !important;
+}
+
+/* Cards / surfaces with inline style backgrounds */
+html.dark [style*="background: #F4F4FB"],
+html.dark [style*="background-color: #F4F4FB"],
+html.dark [style*="background: rgb(244, 244, 251)"] {
+  background-color: #0F172A !important;
+  background: #0F172A !important;
+}
+
 /* Search input animated placeholder */
 .search-input-idle::placeholder {
   animation: placeholder-pulse 2.5s ease-in-out infinite;
