@@ -12,13 +12,14 @@ import { useAuth } from '../contexts/AuthContext'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type ResultKind = 'valid' | 'used' | 'invalid'
+type ResultKind = 'valid' | 'used' | 'invalid' | 'not_your_event'
 
 interface ScanResult {
   kind: ResultKind
   eventTitle?: string
   category?: string
   usedAt?: string
+  message?: string
 }
 
 interface HistoryEntry {
@@ -73,6 +74,13 @@ const KIND_CONFIG = {
     title: 'Billet invalide', titleColor: '#f87171',
     historyColor: 'text-red-400',
     vibrate: [100, 50, 100] as number[],
+  },
+  not_your_event: {
+    bg: '#422006', border: '#d97706',
+    Icon: AlertTriangle, iconColor: '#f59e0b',
+    title: 'REFUSÉ', titleColor: '#f59e0b',
+    historyColor: 'text-amber-400',
+    vibrate: [200, 100, 200, 100, 200] as number[],
   },
 } as const
 
@@ -164,7 +172,7 @@ export function QRScanner() {
     }
 
     const res = data as {
-      status: 'valid' | 'already_used' | 'invalid'
+      status: 'valid' | 'already_used' | 'invalid' | 'not_your_event'
       category?: string
       event_title?: string
       used_at?: string
@@ -175,6 +183,15 @@ export function QRScanner() {
     if (res.status === 'invalid') {
       console.log('[QRScanner] ❌ No ticket found')
       emitResult({ kind: 'invalid' })
+      return
+    }
+
+    if (res.status === 'not_your_event') {
+      console.log('[QRScanner] 🚫 Ticket belongs to another organizer')
+      emitResult({
+        kind: 'not_your_event',
+        message: "Ce billet n'appartient pas à vos événements",
+      })
       return
     }
 
@@ -204,8 +221,9 @@ export function QRScanner() {
     navigator.vibrate?.(KIND_CONFIG[res.kind].vibrate)
 
     const label =
-      res.kind === 'valid'  ? `✅ ${res.eventTitle ?? 'Billet valide'}`
-      : res.kind === 'used' ? `⚠️ ${res.eventTitle ?? 'Déjà utilisé'}`
+      res.kind === 'valid'            ? `✅ ${res.eventTitle ?? 'Billet valide'}`
+      : res.kind === 'used'           ? `⚠️ ${res.eventTitle ?? 'Déjà utilisé'}`
+      : res.kind === 'not_your_event' ? `🚫 Billet autre organisateur`
       : '❌ Code invalide'
 
     setHistory((h) => [
@@ -572,6 +590,9 @@ export function QRScanner() {
                 <p className="text-2xl font-extrabold tracking-tight" style={{ color: cfg.titleColor }}>
                   {cfg.title}
                 </p>
+                {result.message && (
+                  <p className="text-sm mt-2 font-semibold" style={{ color: cfg.iconColor }}>{result.message}</p>
+                )}
                 {result.eventTitle && (
                   <p className="text-white/70 text-sm mt-2 font-semibold">{result.eventTitle}</p>
                 )}

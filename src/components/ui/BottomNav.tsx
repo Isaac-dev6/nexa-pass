@@ -10,8 +10,8 @@ export function BottomNav() {
   return (
     <nav className="md:hidden fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white/90 backdrop-blur-xl border-t border-[#E5E7EB] flex justify-between items-center px-6 py-4 z-50">
       <button
-        onClick={() => navigate('/')}
-        className={`flex flex-col items-center gap-1 ${active('/')}`}
+        onClick={() => navigate('/home')}
+        className={`flex flex-col items-center gap-1 ${active('/home')}`}
       >
         <Compass size={20} />
         <span className="text-[10px] font-semibold">Accueil</span>
