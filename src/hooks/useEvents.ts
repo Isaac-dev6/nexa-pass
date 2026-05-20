@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
@@ -188,7 +188,7 @@ export function useTickets(userId: string | undefined) {
 
 // ── Organizer stats (real data for dashboard) ─────────────────────────────────
 
-export function useOrganizerStats(organizerId: string | undefined): OrgStats {
+export function useOrganizerStats(organizerId: string | undefined): OrgStats & { refetch: () => void } {
   const [stats, setStats] = useState<OrgStats>({
     ticketCount: 0,
     totalSold: 0,
@@ -201,6 +201,8 @@ export function useOrganizerStats(organizerId: string | undefined): OrgStats {
     perEvent: {},
     loading: true,
   })
+  const [tick, setTick] = useState(0)
+  const refetch = useCallback(() => setTick((t) => t + 1), [])
 
   useEffect(() => {
     if (!organizerId) {
@@ -288,9 +290,9 @@ export function useOrganizerStats(organizerId: string | undefined): OrgStats {
 
     load().catch(console.error)
     return () => { cancelled = true }
-  }, [organizerId])
+  }, [organizerId, tick])
 
-  return stats
+  return { ...stats, refetch }
 }
 
 function buildEmptyChart(): { day: string; ventes: number }[] {

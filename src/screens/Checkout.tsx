@@ -137,17 +137,17 @@ export function Checkout() {
       // Simulated payment delay (2 s)
       await new Promise<void>((r) => setTimeout(r, 2000))
 
-      const qrCode = crypto.randomUUID()
-
-      const { error } = await supabase.from('tickets').insert({
+      const ticketsToInsert = Array.from({ length: state.quantity }, () => ({
         event_id: state.eventId,
         user_id: user.id,
         category: state.category,
-        quantity: state.quantity,
-        total_price: totalPrice,
+        quantity: 1,
+        total_price: state.unitPrice,
         status: 'upcoming',
-        qr_code: qrCode,
-      })
+        qr_code: crypto.randomUUID(),
+      }))
+
+      const { error } = await supabase.from('tickets').insert(ticketsToInsert)
 
       if (error) {
         showToast(`Erreur: ${error.message}`)

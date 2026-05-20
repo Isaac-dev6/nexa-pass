@@ -7,7 +7,7 @@ import {
   Plus, Pencil, QrCode, ChevronRight,
   TrendingDown, ArrowUpRight, Trash2, PauseCircle, PlayCircle, X, AlertTriangle,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../contexts/ToastContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -189,13 +189,27 @@ export function OrganizerDashboard() {
   const { showToast } = useToast()
   const { user } = useAuth()
   const { events: rawEvents, loading: eventsLoading } = useOrganizerEvents(user?.id)
-  const orgStats = useOrganizerStats(user?.id)
+  const { refetch: refetchStats, ...orgStats } = useOrganizerStats(user?.id)
   const wip = () => showToast('🚧 Cette section est en cours de construction')
 
   // Delete modal
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [pausingId, setPausingId] = useState<string | null>(null)
+  const [isLive, setIsLive] = useState(false)
+
+  useEffect(() => {
+    if (!user?.id) return
+    const channel = supabase
+      .channel('tickets-changes')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, () => {
+        refetchStats()
+      })
+      .subscribe((status) => {
+        setIsLive(status === 'SUBSCRIBED')
+      })
+    return () => { supabase.removeChannel(channel) }
+  }, [user?.id, refetchStats])
 
   async function handleDelete() {
     if (!deleteTarget) return
@@ -278,7 +292,15 @@ export function OrganizerDashboard() {
       <div className="px-5 pt-12 md:pt-8 pb-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight leading-tight">Mon Dashboard</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-extrabold tracking-tight leading-tight">Mon Dashboard</h1>
+              {isLive && (
+                <span className="flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                  En direct
+                </span>
+              )}
+            </div>
             <p className="text-sm text-[#12122A]/50 mt-0.5">{orgName}</p>
           </div>
           <div className="flex items-center gap-2">
