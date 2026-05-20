@@ -30,7 +30,12 @@ export function Sidebar() {
 
   const { isOrganizer } = useIsOrganizer(user?.id)
   const { isDark, toggleTheme } = useTheme()
-  const fullName: string = user?.user_metadata?.full_name ?? 'Utilisateur'
+
+  const fullName: string =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.email?.split('@')[0] ||
+    'Utilisateur'
   const initials = getInitials(fullName)
 
   const handleSignOut = async () => {
@@ -38,13 +43,23 @@ export function Sidebar() {
     navigate('/login')
   }
 
+  const border = isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB'
+
   return (
-    <aside className="hidden md:flex w-[240px] h-screen sticky top-0 flex-col bg-white border-r border-[#E5E7EB] z-40 shrink-0">
+    <aside
+      className="hidden md:flex w-[240px] h-screen sticky top-0 flex-col z-40 shrink-0 border-r"
+      style={{ background: isDark ? '#0F172A' : 'white', borderColor: border }}
+    >
       {/* Logo */}
-      <div className="px-6 py-6 border-b border-[#E5E7EB]">
+      <div className="px-6 py-6 border-b" style={{ borderColor: border }}>
         <div className="flex items-center gap-3">
           <img src="/logo.png" alt="Nexa Pass" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
-          <span className="font-extrabold text-lg text-[#12122A] tracking-tight">Nexa Pass</span>
+          <span
+            className="font-extrabold text-lg tracking-tight"
+            style={{ color: isDark ? '#F0F0FF' : '#12122A' }}
+          >
+            Nexa Pass
+          </span>
         </div>
       </div>
 
@@ -59,8 +74,11 @@ export function Sidebar() {
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all text-left ${
                 isActive
                   ? 'bg-primary/10 text-primary'
-                  : 'text-[#12122A]/60 hover:bg-[#F4F4FB] hover:text-[#12122A]'
+                  : isDark
+                    ? 'hover:bg-white/5'
+                    : 'hover:bg-[#F4F4FB]'
               }`}
+              style={!isActive ? { color: isDark ? '#F0F0FF' : 'rgba(18,18,42,0.6)' } : undefined}
             >
               <Icon size={18} />
               {label}
@@ -71,14 +89,15 @@ export function Sidebar() {
 
       {/* Dashboard Pro — only if organizer */}
       {isOrganizer && (
-        <div className="px-3 pb-2 border-t border-[#E5E7EB] pt-3 mt-1">
+        <div className="px-3 pb-2 border-t pt-3 mt-1" style={{ borderColor: border }}>
           <button
             onClick={() => navigate('/organizer')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all text-left ${
               location.pathname === '/organizer'
                 ? 'bg-accent/10 text-accent'
-                : 'text-[#12122A]/60 hover:bg-[#F4F4FB] hover:text-[#12122A]'
+                : isDark ? 'hover:bg-white/5' : 'hover:bg-[#F4F4FB]'
             }`}
+            style={location.pathname !== '/organizer' ? { color: isDark ? '#F0F0FF' : 'rgba(18,18,42,0.6)' } : undefined}
           >
             <LayoutDashboard size={18} />
             <span>Dashboard Pro</span>
@@ -91,7 +110,8 @@ export function Sidebar() {
       <div className="px-3 pb-2">
         <button
           onClick={toggleTheme}
-          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold text-[#12122A]/60 hover:bg-[#F4F4FB] hover:text-[#12122A] transition-all"
+          className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${isDark ? 'hover:bg-white/5' : 'hover:bg-[#F4F4FB]'}`}
+          style={{ color: isDark ? '#F0F0FF' : 'rgba(18,18,42,0.6)' }}
         >
           {isDark ? <Moon size={16} /> : <Sun size={16} />}
           {isDark ? 'Mode sombre' : 'Mode clair'}
@@ -120,7 +140,7 @@ export function Sidebar() {
       </div>
 
       {/* User info */}
-      <div className="px-3 py-4 border-t border-[#E5E7EB]">
+      <div className="px-3 py-4 border-t" style={{ borderColor: border }}>
         <div className="flex items-center gap-3">
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
@@ -129,12 +149,17 @@ export function Sidebar() {
             {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-[#12122A] truncate">{fullName}</p>
-            <p className="text-xs text-[#12122A]/50 truncate">{user?.email}</p>
+            <p className="text-sm font-bold truncate" style={{ color: isDark ? '#F0F0FF' : '#12122A' }}>
+              {fullName}
+            </p>
+            <p className="text-xs truncate" style={{ color: isDark ? '#9494B8' : 'rgba(18,18,42,0.5)' }}>
+              {user?.email}
+            </p>
           </div>
           <button
             onClick={handleSignOut}
-            className="text-[#12122A]/40 hover:text-[#12122A]/70 transition-colors shrink-0"
+            className="transition-colors shrink-0"
+            style={{ color: isDark ? '#9494B8' : 'rgba(18,18,42,0.4)' }}
             title="Se déconnecter"
           >
             <LogOut size={16} />

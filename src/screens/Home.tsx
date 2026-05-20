@@ -6,6 +6,7 @@ import { CategoryPills } from '../components/home/CategoryPills'
 import { EventCard } from '../components/home/EventCard'
 import { useToast } from '../contexts/ToastContext'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../contexts/ThemeContext'
 import { useEvents } from '../hooks/useEvents'
 
 const FALLBACK_IMG = 'https://storage.googleapis.com/banani-generated-images/generated-images/43fb3cd6-fae1-4df7-8647-ab16c585f2b3.jpg'
@@ -58,6 +59,7 @@ function EventCardSkeleton() {
 export function Home() {
   const { showToast } = useToast()
   const { user } = useAuth()
+  const { isDark } = useTheme()
   const { events, loading } = useEvents()
   const wip = () => showToast('🚧 Cette section est en cours de construction')
 
@@ -66,7 +68,11 @@ export function Home() {
   const [searchFocused, setSearchFocused] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
-  const fullName: string = user?.user_metadata?.full_name ?? 'Utilisateur'
+  const fullName: string =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.email?.split('@')[0] ||
+    'Utilisateur'
   const initials = getInitials(fullName)
   const firstName = fullName.split(' ')[0]
 
@@ -111,13 +117,15 @@ export function Home() {
 
       <div className="px-5 mb-6 flex gap-3">
         <div
-          className={`flex-1 bg-white rounded-xl px-4 py-3 flex items-center gap-3 border shadow-sm transition-all duration-200 ${
-            searchFocused
-              ? 'border-primary shadow-[0_0_0_3px_rgba(37,99,235,0.12)]'
-              : 'border-[#E5E7EB]'
+          className={`flex-1 rounded-xl px-4 py-3 flex items-center gap-3 border shadow-sm transition-all duration-200 ${
+            searchFocused ? 'border-primary shadow-[0_0_0_3px_rgba(37,99,235,0.12)]' : ''
           }`}
+          style={{
+            background: isDark ? '#1E1E30' : 'white',
+            borderColor: searchFocused ? undefined : isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB',
+          }}
         >
-          <Search size={16} className="text-[#12122A]/50 shrink-0" />
+          <Search size={16} className="shrink-0" style={{ color: isDark ? '#9494B8' : 'rgba(18,18,42,0.5)' }} />
           <input
             ref={searchRef}
             type="text"
@@ -126,9 +134,12 @@ export function Home() {
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
             placeholder="Rechercher un événement..."
-            className={`flex-1 bg-transparent text-sm text-[#12122A] outline-none placeholder-[#12122A]/40 ${
+            className={`flex-1 bg-transparent text-sm outline-none ${
               !searchFocused && !searchValue ? 'search-input-idle' : ''
             }`}
+            style={{
+              color: isDark ? '#F0F0FF' : '#12122A',
+            }}
           />
           {searchValue && (
             <button
